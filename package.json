@@ -18,16 +18,16 @@
     "json",
     "json-ld",
     "rdf",
-    "linked data",
+    "linked data"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "jsonld": "0.0.62"
+    "jsonld": "0.0.62",
+    "uuid": "~1.4.1"
   },
   "peerDependencies": {
-    "levelgraph": "~0.6.1",
-    "levelgraph-n3": "~0.1.0"
+    "levelgraph": "~0.6.1"
   },
   "devDependencies": {
     "mocha": "~1.10.0",
