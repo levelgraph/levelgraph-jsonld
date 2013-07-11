@@ -1,7 +1,7 @@
 {
-  "name": "levelgraph-odm",
+  "name": "levelgraph-jsonld",
   "version": "0.0.0",
-  "description": "The Object Document Mapper of LevelGraph and based on JSON-LD",
+  "description": "The Object Document Mapper of LevelGraph based on JSON-LD",
   "main": "index.js",
   "scripts": {
     "test": "./node_modules/.bin/mocha --recursive test"
@@ -18,8 +18,7 @@
     "json",
     "json-ld",
     "rdf",
-    "linked",
-    "data"
+    "linked data",
   ],
   "author": "",
   "license": "MIT",
