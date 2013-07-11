@@ -24,12 +24,17 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "jsonld": "0.0.58",
-    "level": "~0.9.0",
-    "levelgraph": "~0.5.2"
+    "jsonld": "0.0.62"
+  },
+  "peerDependencies": {
+    "levelgraph": "~0.6.1",
+    "levelgraph-n3": "~0.1.0"
   },
   "devDependencies": {
     "mocha": "~1.10.0",
-    "level-test": "~1.2.1"
+    "levelgraph": "~0.6.1",
+    "levelgraph-n3": "~0.1.0",
+    "level-test": "~1.4.0",
+    "chai": "~1.7.2"
   }
 }
