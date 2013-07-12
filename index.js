@@ -1,6 +1,7 @@
 
 var jsonld = require("jsonld")
-  , uuid   = require("uuid");
+  , uuid   = require("uuid")
+  , IRI = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i;
 
 function levelgraphJSONLD(db) {
   
@@ -52,6 +53,40 @@ function levelgraphJSONLD(db) {
       });
 
       stream.end();
+    });
+  };
+
+  graphdb.jsonld.get = function(iri, context, options, callback) {
+
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+
+    graphdb.get({ subject: iri }, function(err, triples) {
+      if (err || triples.length === 0) {
+        return callback(err, null);
+      }
+
+      var triples   = triples.reduce(function(acc, triple) {
+                        var key;
+
+                        if (!acc[triple.subject]) {
+                          acc[triple.subject] = { "@id": triple.subject };
+                        }
+                        acc[triple.subject][triple.predicate] = {};
+                        key = triple.object.match(IRI) ? "@id" : "@value";
+                        acc[triple.subject][triple.predicate][key] = triple.object;
+
+                        return acc;
+                      }, {})
+
+        , expanded  = Object.keys(triples).reduce(function(acc, key) {
+                        acc.push(triples[key]);
+                        return acc;
+                      }, []);
+
+      jsonld.compact(expanded, context, options, callback);
     });
   };
 
