@@ -105,3 +105,42 @@ describe("jsonld.put", function() {
     });
   });
 });
+
+describe("jsonld.put with default base", function() {
+  
+  var db, manu;
+
+  beforeEach(function() {
+    db = jsonld(graph(level()), { base: "http://levelgraph.io/ahah/" });
+    manu = manu = {
+        "@context": {
+          "name": "http://xmlns.com/foaf/0.1/name"
+          , "homepage": {
+            "@id": "http://xmlns.com/foaf/0.1/homepage"
+            , "@type": "@id"
+          }
+        }
+      , "@id": "http://manu.sporny.org#person"
+      , "name": "Manu Sporny"
+      , "homepage": "http://manu.sporny.org/"
+    };
+  }); 
+
+  afterEach(function(done) {
+    db.close(done);
+  });
+
+  it("should use it", function(done) {
+    manu["@id"] = "42"
+    db.jsonld.put(manu, function() {
+      db.get({
+          subject: "http://levelgraph.io/ahah/42"
+        , predicate: "http://xmlns.com/foaf/0.1/name"
+        , object: "Manu Sporny"
+      }, function(err, triples) {
+        expect(triples).to.have.property("length", 1);
+        done();
+      });
+    });
+  });
+});

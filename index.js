@@ -3,7 +3,7 @@ var jsonld = require("jsonld")
   , uuid   = require("uuid")
   , IRI = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i;
 
-function levelgraphJSONLD(db) {
+function levelgraphJSONLD(db, jsonldOpts) {
   
   if (db.jsonld) {
     return db;
@@ -11,7 +11,12 @@ function levelgraphJSONLD(db) {
 
   var graphdb = Object.create(db);
 
-  graphdb.jsonld = {};
+  jsonldOpts = jsonldOpts || {};
+  jsonldOpts.base = jsonldOpts.base || "";
+
+  graphdb.jsonld = {
+      options: jsonldOpts
+  };
 
   graphdb.jsonld.put = function(obj, options, callback) {
     if (typeof obj === 'string') {
@@ -23,7 +28,7 @@ function levelgraphJSONLD(db) {
       options = {};
     }
 
-    options.base = options.base || "";
+    options.base = options.base || this.options.base;
 
     if (!obj["@id"]) {
       obj["@id"] = options.base + uuid.v1();
@@ -43,7 +48,7 @@ function levelgraphJSONLD(db) {
         delete triples["@id"];
 
         if (!subject) {
-          subject = options.base + uuid.v1();
+          subject = (options.base || graphdb.jsond.options.base) + uuid.v1();
         }
 
         Object.keys(triples).forEach(function(predicate) {
