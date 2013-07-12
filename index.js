@@ -25,12 +25,18 @@ function levelgraphJSONLD(db) {
 
     options.base = options.base || "";
 
+    if (!obj["@id"]) {
+      obj["@id"] = options.base + uuid.v1();
+    }
+
     jsonld.expand(obj, options, function(err, expanded) {
 
       var stream = graphdb.putStream();
 
       stream.on("error", callback);
-      stream.on("close", callback);
+      stream.on("close", function() {
+        callback(null, obj);
+      });
 
       expanded.forEach(function(triples) {
         var subject = triples["@id"];

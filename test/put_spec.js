@@ -5,23 +5,23 @@ var level = require("level-test")()
 
 describe("jsonld.put", function() {
   
-  var db
-    , manu = {
-          "@context": {
-              "name": "http://xmlns.com/foaf/0.1/name"
-            , "homepage": {
-                  "@id": "http://xmlns.com/foaf/0.1/homepage"
-                , "@type": "@id"
-              }
-          }
-        , "@id": "http://manu.sporny.org#person"
-        , "name": "Manu Sporny"
-        , "homepage": "http://manu.sporny.org/"
-      }
+  var db, manu;
 
 
   beforeEach(function() {
     db = jsonld(graph(level()));
+    manu = manu = {
+        "@context": {
+          "name": "http://xmlns.com/foaf/0.1/name"
+          , "homepage": {
+            "@id": "http://xmlns.com/foaf/0.1/homepage"
+            , "@type": "@id"
+          }
+        }
+      , "@id": "http://manu.sporny.org#person"
+      , "name": "Manu Sporny"
+      , "homepage": "http://manu.sporny.org/"
+    };
   }); 
 
   afterEach(function(done) {
@@ -81,7 +81,7 @@ describe("jsonld.put", function() {
     });
   });
 
-  it("should generate a uuid for unknown objects", function(done) {
+  it("should generate an @id for unknown objects", function(done) {
     delete manu["@id"];
 
     db.jsonld.put(manu, { base: "http://levelgraph.org/tests/" }, function() {
@@ -93,6 +93,15 @@ describe("jsonld.put", function() {
         expect(contexts[0].subject.indexOf("http://levelgraph.org/tests/")).to.equal(0);
         done();
       });
+    });
+  });
+
+  it("should pass the generated @id to callback", function(done) {
+    delete manu["@id"];
+
+    db.jsonld.put(manu, { base: "http://levelgraph.org/tests/" }, function(err, obj) {
+      expect(obj["@id"].indexOf("http://levelgraph.org/tests/")).to.equal(0);
+      done();
     });
   });
 });
