@@ -1,27 +1,15 @@
 
-var level = require("level-test")()
-  , graph = require("levelgraph")
-  , jsonld = require("../")
+var level  = require("level-test")()
+  , graph  = require("levelgraph")
+  , jsonld = require("../");
 
 describe("jsonld.put", function() {
   
   var db, manu;
 
-
   beforeEach(function() {
     db = jsonld(graph(level()));
-    manu = manu = {
-        "@context": {
-          "name": "http://xmlns.com/foaf/0.1/name"
-          , "homepage": {
-            "@id": "http://xmlns.com/foaf/0.1/homepage"
-            , "@type": "@id"
-          }
-        }
-      , "@id": "http://manu.sporny.org#person"
-      , "name": "Manu Sporny"
-      , "homepage": "http://manu.sporny.org/"
-    };
+    manu = fixture("manu.json");
   }); 
 
   afterEach(function(done) {
@@ -104,6 +92,19 @@ describe("jsonld.put", function() {
       done();
     });
   });
+
+  it("should convert @type into http://www.w3.org/1999/02/22-rdf-syntax-ns#type", function(done) {
+    db.jsonld.put(fixture("tesla.json"), function() {
+      db.get({
+          subject: "http://example.org/cars/for-sale#tesla"
+        , predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+        , object: "http://purl.org/goodrelations/v1#Offering"
+      }, function(err, triples) {
+        expect(triples).to.have.property("length", 1);
+        done();
+      });
+    });
+  });
 });
 
 describe("jsonld.put with default base", function() {
@@ -112,18 +113,7 @@ describe("jsonld.put with default base", function() {
 
   beforeEach(function() {
     db = jsonld(graph(level()), { base: "http://levelgraph.io/ahah/" });
-    manu = manu = {
-        "@context": {
-          "name": "http://xmlns.com/foaf/0.1/name"
-          , "homepage": {
-            "@id": "http://xmlns.com/foaf/0.1/homepage"
-            , "@type": "@id"
-          }
-        }
-      , "@id": "http://manu.sporny.org#person"
-      , "name": "Manu Sporny"
-      , "homepage": "http://manu.sporny.org/"
-    };
+    manu = fixture("manu.json");
   }); 
 
   afterEach(function(done) {
@@ -139,6 +129,38 @@ describe("jsonld.put with default base", function() {
         , object: "Manu Sporny"
       }, function(err, triples) {
         expect(triples).to.have.property("length", 1);
+        done();
+      });
+    });
+  });
+
+  it("should correctly generate blank nodes as subjects", function(done) {
+    var tesla = fixture("tesla.json");
+
+    db.jsonld.put(tesla, function() {
+      db.join([{
+          subject: "http://example.org/cars/for-sale#tesla"
+        , predicate: "http://purl.org/goodrelations/v1#hasPriceSpecification"
+        , object: db.v("bnode")
+      }, {
+          subject: db.v("bnode")
+        , predicate: "http://purl.org/goodrelations/v1#hasCurrency"
+        , object: "USD"
+      }], function(err, contexts) {
+        expect(contexts[0].bnode).to.exist;
+        done();
+      });
+    });
+  });
+
+  it("should not store undefined objects", function(done) {
+    var tesla = fixture("tesla.json");
+
+    db.jsonld.put(tesla, function() {
+      db.get({}, function(err, triples) {
+        triples.forEach(function(triple) {
+          expect(triple.object).to.exist;
+        });
         done();
       });
     });

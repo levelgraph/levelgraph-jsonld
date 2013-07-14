@@ -24,7 +24,8 @@
   "license": "MIT",
   "dependencies": {
     "jsonld": "0.0.62",
-    "uuid": "~1.4.1"
+    "uuid": "~1.4.1",
+    "async": "~0.2.9"
   },
   "peerDependencies": {
     "levelgraph": "~0.6.1"

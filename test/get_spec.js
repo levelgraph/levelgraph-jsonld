@@ -1,26 +1,16 @@
 
-var level = require("level-test")()
-  , graph = require("levelgraph")
+var level  = require("level-test")()
+  , graph  = require("levelgraph")
   , jsonld = require("../")
+  , fs     = require("fs")
+  , JSONLD = require("jsonld");
 
 describe("jsonld.get", function() {
   
-  var db
-    , manu = {
-          "@context": {
-              "name": "http://xmlns.com/foaf/0.1/name"
-            , "homepage": {
-                  "@id": "http://xmlns.com/foaf/0.1/homepage"
-                , "@type": "@id"
-              }
-          }
-        , "@id": "http://manu.sporny.org#person"
-        , "name": "Manu Sporny"
-        , "homepage": "http://manu.sporny.org/"
-      };
+  var db, manu = fixture("manu.json");
 
   beforeEach(function() {
-    db = jsonld(graph(level()));
+    db = jsonld(graph(level()), { base: "http://levelgraph.io/get" } );
   });
 
   afterEach(function(done) {
@@ -42,6 +32,24 @@ describe("jsonld.get", function() {
     it("should load it", function(done) {
       db.jsonld.get(manu["@id"], { "@context": manu["@context"] }, function(err, obj) {
         expect(obj).to.be.eql(manu);
+        done();
+      });
+    });
+  });
+
+  describe("with an object with blank nodes", function() {
+    var tesla;
+
+    beforeEach(function(done) {
+      tesla = fixture("tesla.json")
+      db.jsonld.put(tesla, done);
+    });
+
+    it("should load it properly", function(done) {
+      db.jsonld.get(tesla["@id"], { "@context": tesla["@context"] }, function(err, obj) {
+        tesla["gr:hasPriceSpecification"]["@id"] = obj["gr:hasPriceSpecification"]["@id"];
+        tesla["gr:includes"]["@id"] = obj["gr:includes"]["@id"];
+        expect(obj).to.eql(tesla);
         done();
       });
     });
