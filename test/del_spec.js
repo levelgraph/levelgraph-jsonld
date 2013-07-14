@@ -44,4 +44,30 @@ describe("jsonld.del", function() {
       });
     });
   });
+
+  it("should del an iri", function(done) {
+    db.jsonld.put(manu, function() {
+      db.jsonld.del(manu["@id"], function() {
+        db.get({}, function(err, triples) {
+          // getting the full db
+          expect(triples).to.have.property("length", 0);
+          done();
+        });
+      });
+    });
+  });
+
+  it("should del a single object", function(done) {
+    db.jsonld.put(manu, function() {
+      db.jsonld.put(tesla, function() {
+        db.jsonld.del(tesla, function() {
+          db.get({}, function(err, triples) {
+            // getting the full db
+            expect(triples).to.have.property("length", 2);
+            done();
+          });
+        });
+      });
+    });
+  });
 });
