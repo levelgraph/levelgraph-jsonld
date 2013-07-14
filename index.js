@@ -3,7 +3,9 @@ var jsonld = require("jsonld")
   , uuid   = require("uuid")
   , IRI = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i
   , RDFTYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-  , async = require("async");
+  , async = require("async")
+  , blanksRegexp = /^_:b\d+$/
+  , genActionStream;
 
 function levelgraphJSONLD(db, jsonldOpts) {
   
@@ -36,7 +38,9 @@ function levelgraphJSONLD(db, jsonldOpts) {
       obj["@id"] = options.base + uuid.v1();
     }
 
-    jsonld.expand(obj, options, function(err, expanded) {
+    var blanks = {};
+
+    jsonld.toRDF(obj, options, function(err, triples) {
 
       var stream = graphdb.putStream();
 
@@ -45,48 +49,56 @@ function levelgraphJSONLD(db, jsonldOpts) {
         callback(null, obj);
       });
 
-      var writeTriples = function(triples) {
-        var subject = triples["@id"];
-        delete triples["@id"];
-
-        if (!subject) {
-          subject = "_:" + uuid.v1();
-        }
-
-        Object.keys(triples).forEach(function(predicate) {
-          if (predicate === "@type") {
-            if (!triples[predicate].forEach) {
-              triples[predicate] = [triples[predicate]];
+      triples["@default"].map(function(triple) {
+        return ["subject", "predicate", "object"].reduce(function(acc, key) {
+          var value = triple[key].value;
+          if (value.match(blanksRegexp)) {
+            if (!blanks[value]) {
+              blanks[value] = "_:" + uuid.v1();
             }
-
-            triples[RDFTYPE] = triples[predicate];
-            delete triples[predicate];
-            predicate = RDFTYPE;
+            value = blanks[value];
           }
+          acc[key] = value;
+          return acc;
+        }, {});
+      }).forEach(function(triple) {
+        stream.write(triple);
+      });
 
-          triples[predicate].forEach(function(object) {
-            var triple = {
-                subject: subject
-              , predicate: predicate
-              , object: (typeof object === 'string') ? object : object["@id"] || object["@value"]
-            };
-            
-            if (!triple.object) {
-              // the object should be a blank node that points
-              // to a another triple
-              writeTriples(object);
-              triple.object = object["@id"];
-            }
+      stream.end();
+    });
+  };
 
-            stream.write(triple);
-          });
-        });
 
-        triples["@id"] = subject;
-      };
+  graphdb.jsonld.del = function(iri, options, callback) {
+    if (typeof options === "function") {
+      callback = options;
+      options = {};
+    }
 
-      expanded.forEach(writeTriples);
+    if (typeof iri !=='string') {
+      iri = iri["@id"];
+    }
 
+    var stream  = graphdb.delStream();
+    stream.on("close", callback);
+    stream.on("error", callback);
+
+    (function delAllTriples(iri, done) {
+      graphdb.get({ subject: iri }, function(err, triples) {
+        async.each(triples, function(triple, cb) {
+          stream.write(triple);
+          if (triple.object.indexOf("_:") === 0) {
+            delAllTriples(triple.object, cb);
+          } else {
+            cb();
+          }
+        }, done);
+      });
+    })(iri, function(err) {
+      if (err) {
+        return callback(err);
+      }
       stream.end();
     });
   };
@@ -156,3 +168,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
 }
 
 module.exports = levelgraphJSONLD;
+
+genActionStream = function(graphdb, type) {
+  return 
+};
