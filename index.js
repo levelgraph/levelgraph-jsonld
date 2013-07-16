@@ -131,12 +131,19 @@ function levelgraphJSONLD(db, jsonldOpts) {
           cb(null, acc);
         } else if (triple.object.indexOf("_:") !== 0) {
           acc[triple.subject][triple.predicate] = {};
-          key = (triple.object.match(IRI) || triple.object.indexOf("_:") === 0) ? "@id" : "@value";
+          key = (triple.object.match(IRI)) ? "@id" : "@value";
           acc[triple.subject][triple.predicate][key] = triple.object;
           cb(null, acc);
         } else {
           fetchExpandedTriples(triple.object, function(err, expanded) {
-            acc[triple.subject][triple.predicate] = expanded[triple.object];
+            if (!acc[triple.subject][triple.predicate]) {
+              acc[triple.subject][triple.predicate] = expanded[triple.object];
+            } else {
+              if (!acc[triple.subject][triple.predicate].push) {
+                acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
+              }
+              acc[triple.subject][triple.predicate].push(expanded[triple.object]);
+            }
             cb(err, acc);
           });
         }
@@ -155,12 +162,8 @@ function levelgraphJSONLD(db, jsonldOpts) {
       if (err || expanded === null) {
         return callback(err, expanded);
       }
-      expanded = Object.keys(expanded).reduce(function(acc, key) {
-        acc.push(expanded[key]);
-        return acc;
-      }, []);
 
-      jsonld.compact(expanded, context, options, callback);
+      jsonld.compact(expanded[iri], context, options, callback);
     });
   };
 

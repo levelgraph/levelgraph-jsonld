@@ -53,4 +53,17 @@ describe("jsonld.get", function() {
       });
     });
   });
+
+  it("should support nested objects", function(done) {
+    var nested = fixture("nested.json");
+
+    db.jsonld.put(nested, function(err, obj) {
+      db.jsonld.get(obj["@id"], { "@context": obj["@context"] }, function(err, result) {
+        delete result["knows"][0]["@id"];
+        delete result["knows"][1]["@id"];
+        expect(result).to.eql(nested);
+        done();
+      });
+    });
+  });
 });

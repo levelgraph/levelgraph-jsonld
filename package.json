@@ -1,12 +1,18 @@
 {
   "name": "levelgraph-jsonld",
-  "version": "0.0.0",
-  "description": "The Object Document Mapper of LevelGraph based on JSON-LD",
+  "version": "0.1.0",
+  "description": "The Object Document Mapper for LevelGraph based on JSON-LD",
   "main": "index.js",
   "scripts": {
     "test": "./node_modules/.bin/mocha --recursive test"
   },
-  "repository": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mcollina/levelgraph-jsonld.git"
+  },
+  "bugs": {
+    "url": "http://github.com/mcollina/levelgraph-jsonld/issues"
+  },
   "keywords": [
     "object",
     "document",
@@ -20,7 +26,7 @@
     "rdf",
     "linked data"
   ],
-  "author": "",
+  "author": "Matteo Collina <hello@matteocollina.com>",
   "license": "MIT",
   "dependencies": {
     "jsonld": "0.0.62",
@@ -33,7 +39,6 @@
   "devDependencies": {
     "mocha": "~1.10.0",
     "levelgraph": "~0.6.1",
-    "levelgraph-n3": "~0.1.0",
     "level-test": "~1.4.0",
     "chai": "~1.7.2"
   }

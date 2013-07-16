@@ -165,4 +165,15 @@ describe("jsonld.put with default base", function() {
       });
     });
   });
+
+  it("should support nested objects", function(done) {
+    var nested = fixture("nested.json");
+
+    db.jsonld.put(nested, function() {
+      db.get({}, function(err, triples) {
+        expect(triples).to.have.property("length", 5);
+        done();
+      });
+    });
+  });
 });
