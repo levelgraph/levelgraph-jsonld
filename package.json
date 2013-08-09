@@ -29,7 +29,7 @@
   "author": "Matteo Collina <hello@matteocollina.com>",
   "license": "MIT",
   "dependencies": {
-    "jsonld": "0.0.62",
+    "jsonld": "0.1.0",
     "uuid": "~1.4.1",
     "async": "~0.2.9"
   },
