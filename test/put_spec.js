@@ -105,6 +105,40 @@ describe("jsonld.put", function() {
       });
     });
   });
+
+  it("should update a property", function(done) {
+    db.jsonld.put(manu, function(err, instance) {
+      instance.homepage = "http://another/website";
+      db.jsonld.put(instance, function() {
+        db.get({
+            subject: "http://manu.sporny.org#person"
+          , predicate: "http://xmlns.com/foaf/0.1/homepage"
+          , object: "http://another/website"
+        }, function(err, triples) {
+          expect(triples).to.have.property("length", 1);
+          done();
+        });
+      });
+    });
+  });
+
+  it("should add a property", function(done) {
+    db.jsonld.put(manu, function(err, instance) {
+      instance.age = 42;
+      instance["@context"].age = "http://xmlns.com/foaf/0.1/age";
+
+      db.jsonld.put(instance, function() {
+        db.get({
+            subject: "http://manu.sporny.org#person"
+          , predicate: "http://xmlns.com/foaf/0.1/age"
+          , object: 42
+        }, function(err, triples) {
+          expect(triples).to.have.property("length", 1);
+          done();
+        });
+      });
+    });
+  });
 });
 
 describe("jsonld.put with default base", function() {
