@@ -155,6 +155,22 @@ describe("jsonld.put", function() {
       });
     });
   });
+
+  it("should delete a nested object", function(done) {
+    db.jsonld.put(fixture("tesla.json"), function(err, instance) {
+      delete instance["gr:hasPriceSpecification"];
+
+      db.jsonld.put(instance, function() {
+        db.get({
+            subject: "http://example.org/cars/for-sale#tesla"
+          , predicate: "http://purl.org/goodrelations/v1#"
+        }, function(err, triples) {
+          expect(triples).to.have.property("length", 0);
+          done();
+        });
+      });
+    });
+  });
 });
 
 describe("jsonld.put with default base", function() {
