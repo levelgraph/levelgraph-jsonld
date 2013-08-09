@@ -22,22 +22,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
       options: jsonldOpts
   };
 
-  graphdb.jsonld.put = function(obj, options, callback) {
-    if (typeof obj === 'string') {
-      obj = JSON.parse(obj);
-    }
-
-    if (typeof options === 'function') {
-      callback = options;
-      options = {};
-    }
-
-    options.base = options.base || this.options.base;
-
-    if (!obj["@id"]) {
-      obj["@id"] = options.base + uuid.v1();
-    }
-
+  var doPut = function(obj, options, callback) {
     var blanks = {};
 
     jsonld.toRDF(obj, options, function(err, triples) {
@@ -69,6 +54,30 @@ function levelgraphJSONLD(db, jsonldOpts) {
     });
   };
 
+  graphdb.jsonld.put = function(obj, options, callback) {
+    if (typeof obj === 'string') {
+      obj = JSON.parse(obj);
+    }
+
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+
+    options.base = options.base || this.options.base;
+
+    if (obj["@id"]) {
+      graphdb.jsonld.del(obj["@id"], options, function(err) {
+        if (err) {
+          return callback && callback(err);
+        }
+        doPut(obj, options, callback);
+      });
+    } else {
+      obj["@id"] = options.base + uuid.v1();
+      doPut(obj, options, callback);
+    }
+  };
 
   graphdb.jsonld.del = function(iri, options, callback) {
     if (typeof options === "function") {

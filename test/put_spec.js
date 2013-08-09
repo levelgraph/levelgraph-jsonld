@@ -139,6 +139,22 @@ describe("jsonld.put", function() {
       });
     });
   });
+
+  it("should delete a property", function(done) {
+    db.jsonld.put(manu, function(err, instance) {
+      delete instance.homepage
+
+      db.jsonld.put(instance, function() {
+        db.get({
+            subject: "http://manu.sporny.org#person"
+          , predicate: "http://xmlns.com/foaf/0.1/homepage"
+        }, function(err, triples) {
+          expect(triples).to.have.property("length", 0);
+          done();
+        });
+      });
+    });
+  });
 });
 
 describe("jsonld.put with default base", function() {
