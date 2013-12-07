@@ -30,7 +30,7 @@ describe("jsonld.get", function() {
 
     it("should load it", function(done) {
       db.jsonld.get(manu["@id"], { "@context": manu["@context"] }, function(err, obj) {
-        expect(obj).to.be.eql(manu);
+        expect(obj).to.eql(manu);
         done();
       });
     });
