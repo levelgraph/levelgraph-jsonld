@@ -135,7 +135,7 @@ describe("jsonld.put", function() {
         db.get({
             subject: "http://manu.sporny.org#person"
           , predicate: "http://xmlns.com/foaf/0.1/age"
-          , object: 42
+          , object: '"42"^^<http://www.w3.org/2001/XMLSchema#integer>'
         }, function(err, triples) {
           expect(triples).to.have.length(1);
           done();

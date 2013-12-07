@@ -1,8 +1,9 @@
 
 var jsonld = require("jsonld")
   , uuid   = require("uuid")
-  , IRI = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i
+  , IRI = /^(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i
   , RDFTYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+  , XSDTYPE = "http://www.w3.org/2001/XMLSchema#"
   , async = require("async")
   , blanksRegexp = /^_:b\d+$/;
 
@@ -41,6 +42,12 @@ function levelgraphJSONLD(db, jsonldOpts) {
               blanks[value] = "_:" + uuid.v1();
             }
             value = blanks[value];
+          }
+          // preserve object data type if other then string
+          if(key === "object" && triple.object.datatype &&  triple.object.datatype.match(XSDTYPE)){
+            if(triple.object.datatype !== "http://www.w3.org/2001/XMLSchema#string"){
+              value = '"' + triple.object.value + '"^^<' + triple.object.datatype + '>';
+            }
           }
           acc[key] = value;
           return acc;
@@ -140,6 +147,29 @@ function levelgraphJSONLD(db, jsonldOpts) {
         } else if (triple.object.indexOf("_:") !== 0) {
           acc[triple.subject][triple.predicate] = {};
           key = (triple.object.match(IRI)) ? "@id" : "@value";
+          // coerce
+          var coercionCheck = triple.object.match(/"(.*)"\^\^<http:\/\/www.w3.org\/2001\/XMLSchema#(.*)>/);
+          if (coercionCheck) {
+            switch (coercionCheck[2]) {
+              case "boolean":
+                if (coercionCheck[1] === "true") {
+                  triple.object = true;
+                }
+                if (coercionCheck[1] === "false") {
+                  triple.object = false;
+                }
+                break;
+              case "integer":
+                triple.object = parseInt(coercionCheck[1], 10);
+                break;
+              case "double":
+                triple.object = parseFloat(coercionCheck[1]);
+                break;
+              case "string":
+                triple.object = coercionCheck[1];
+                break;
+            }
+          }
           acc[triple.subject][triple.predicate][key] = triple.object;
           cb(null, acc);
         } else {
