@@ -26,7 +26,7 @@ describe("jsonld.del", function() {
       db.jsonld.del(manu, function() {
         db.get({}, function(err, triples) {
           // getting the full db
-          expect(triples).to.have.property("length", 0);
+          expect(triples).to.be.empty;
           done();
         });
       });
@@ -38,7 +38,7 @@ describe("jsonld.del", function() {
       db.jsonld.del(tesla, function() {
         db.get({}, function(err, triples) {
           // getting the full db
-          expect(triples).to.have.property("length", 0);
+          expect(triples).to.be.empty;
           done();
         });
       });
@@ -50,7 +50,7 @@ describe("jsonld.del", function() {
       db.jsonld.del(manu["@id"], function() {
         db.get({}, function(err, triples) {
           // getting the full db
-          expect(triples).to.have.property("length", 0);
+          expect(triples).to.be.empty;
           done();
         });
       });
@@ -63,7 +63,7 @@ describe("jsonld.del", function() {
         db.jsonld.del(tesla, function() {
           db.get({}, function(err, triples) {
             // getting the full db
-            expect(triples).to.have.property("length", 2);
+            expect(triples).to.have.length(2);
             done();
           });
         });

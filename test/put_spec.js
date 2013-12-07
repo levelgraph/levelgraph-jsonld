@@ -27,7 +27,7 @@ describe("jsonld.put", function() {
         , predicate: "http://xmlns.com/foaf/0.1/name"
         , object: "Manu Sporny"
       }, function(err, triples) {
-        expect(triples).to.have.property("length", 1);
+        expect(triples).to.have.length(1);
         done();
       });
     });
@@ -38,7 +38,7 @@ describe("jsonld.put", function() {
       db.get({
           subject: "http://manu.sporny.org#person"
       }, function(err, triples) {
-        expect(triples).to.have.property("length", 2);
+        expect(triples).to.have.length(2);
         done();
       });
     });
@@ -49,7 +49,7 @@ describe("jsonld.put", function() {
       db.get({
           subject: "http://manu.sporny.org#person"
       }, function(err, triples) {
-        expect(triples).to.have.property("length", 2);
+        expect(triples).to.have.length(2);
         done();
       });
     });
@@ -63,7 +63,7 @@ describe("jsonld.put", function() {
         , predicate: "http://xmlns.com/foaf/0.1/name"
         , object: "Manu Sporny"
       }, function(err, triples) {
-        expect(triples).to.have.property("length", 1);
+        expect(triples).to.have.length(1);
         done();
       });
     });
@@ -71,14 +71,16 @@ describe("jsonld.put", function() {
 
   it("should generate an @id for unknown objects", function(done) {
     delete manu["@id"];
+    var baseString = "http://levelgraph.org/tests/";
+    var baseRegEx = /^http:\/\/levelgraph.org\/tests\//;
 
-    db.jsonld.put(manu, { base: "http://levelgraph.org/tests/" }, function() {
+    db.jsonld.put(manu, { base: baseString }, function() {
       db.join({
           subject: db.v("subject")
         , predicate: "http://xmlns.com/foaf/0.1/name"
         , object: "Manu Sporny"
       }, function(err, contexts) {
-        expect(contexts[0].subject.indexOf("http://levelgraph.org/tests/")).to.equal(0);
+        expect(contexts[0].subject).to.match(baseRegEx);
         done();
       });
     });
@@ -86,9 +88,11 @@ describe("jsonld.put", function() {
 
   it("should pass the generated @id to callback", function(done) {
     delete manu["@id"];
+    var baseString = "http://levelgraph.org/tests/";
+    var baseRegEx = /^http:\/\/levelgraph.org\/tests\//;
 
-    db.jsonld.put(manu, { base: "http://levelgraph.org/tests/" }, function(err, obj) {
-      expect(obj["@id"].indexOf("http://levelgraph.org/tests/")).to.equal(0);
+    db.jsonld.put(manu, { base: baseString }, function(err, obj) {
+      expect(obj["@id"]).to.match(baseRegEx);
       done();
     });
   });
@@ -100,7 +104,7 @@ describe("jsonld.put", function() {
         , predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
         , object: "http://purl.org/goodrelations/v1#Offering"
       }, function(err, triples) {
-        expect(triples).to.have.property("length", 1);
+        expect(triples).to.have.length(1);
         done();
       });
     });
@@ -115,7 +119,7 @@ describe("jsonld.put", function() {
           , predicate: "http://xmlns.com/foaf/0.1/homepage"
           , object: "http://another/website"
         }, function(err, triples) {
-          expect(triples).to.have.property("length", 1);
+          expect(triples).to.have.length(1);
           done();
         });
       });
@@ -133,7 +137,7 @@ describe("jsonld.put", function() {
           , predicate: "http://xmlns.com/foaf/0.1/age"
           , object: 42
         }, function(err, triples) {
-          expect(triples).to.have.property("length", 1);
+          expect(triples).to.have.length(1);
           done();
         });
       });
@@ -149,7 +153,7 @@ describe("jsonld.put", function() {
             subject: "http://manu.sporny.org#person"
           , predicate: "http://xmlns.com/foaf/0.1/homepage"
         }, function(err, triples) {
-          expect(triples).to.have.property("length", 0);
+          expect(triples).to.be.empty;
           done();
         });
       });
@@ -165,7 +169,7 @@ describe("jsonld.put", function() {
             subject: "http://example.org/cars/for-sale#tesla"
           , predicate: "http://purl.org/goodrelations/v1#"
         }, function(err, triples) {
-          expect(triples).to.have.property("length", 0);
+          expect(triples).to.be.empty;
           done();
         });
       });
@@ -194,7 +198,7 @@ describe("jsonld.put with default base", function() {
         , predicate: "http://xmlns.com/foaf/0.1/name"
         , object: "Manu Sporny"
       }, function(err, triples) {
-        expect(triples).to.have.property("length", 1);
+        expect(triples).to.have.length(1);
         done();
       });
     });
@@ -237,7 +241,7 @@ describe("jsonld.put with default base", function() {
 
     db.jsonld.put(nested, function() {
       db.get({}, function(err, triples) {
-        expect(triples).to.have.property("length", 5);
+        expect(triples).to.have.length(5);
         done();
       });
     });
