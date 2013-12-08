@@ -4,11 +4,10 @@ var jsonld = require("jsonld")
   , IRI = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i
   , RDFTYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
   , async = require("async")
-  , blanksRegexp = /^_:b\d+$/
-  , genActionStream;
+  , blanksRegexp = /^_:b\d+$/;
 
 function levelgraphJSONLD(db, jsonldOpts) {
-  
+
   if (db.jsonld) {
     return db;
   }
@@ -129,7 +128,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
         if (!acc[triple.subject]) {
           acc[triple.subject] = { "@id": triple.subject };
         }
-        
+
         if (triple.predicate === RDFTYPE) {
           if (acc[triple.subject]["@type"]) {
             acc[triple.subject]["@type"] = [acc[triple.subject]["@type"]];
@@ -181,6 +180,3 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
 module.exports = levelgraphJSONLD;
 
-genActionStream = function(graphdb, type) {
-  return 
-};

@@ -4,7 +4,7 @@ var level  = require("level-test")()
   , jsonld = require("../");
 
 describe("jsonld.put", function() {
-  
+
   var db, manu;
 
   beforeEach(function() {
@@ -178,7 +178,7 @@ describe("jsonld.put", function() {
 });
 
 describe("jsonld.put with default base", function() {
-  
+
   var db, manu;
 
   beforeEach(function() {

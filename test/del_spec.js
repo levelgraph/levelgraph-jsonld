@@ -1,10 +1,9 @@
 var level  = require("level-test")()
   , graph  = require("levelgraph")
-  , jsonld = require("../")
-  , JSONLD = require("jsonld");
+  , jsonld = require("../");
 
 describe("jsonld.del", function() {
-  
+
   var db, manu, tesla;
 
   beforeEach(function() {

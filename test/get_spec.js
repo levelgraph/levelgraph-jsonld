@@ -5,7 +5,7 @@ var level  = require("level-test")()
   , fs     = require("fs");
 
 describe("jsonld.get", function() {
-  
+
   var db, manu = fixture("manu.json");
 
   beforeEach(function() {

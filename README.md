@@ -14,8 +14,8 @@ Status](https://travis-ci.org/mcollina/levelgraph-jsonld.png)](https://travis-ci
 
 ## Install on Node.js
 
-```
-npm install levelgraph levelgraph-jsonld --save
+```shell
+$ npm install levelgraph levelgraph-jsonld --save
 ```
 
 At the moment it requires node v0.10.x, but the port to node v0.8.x
@@ -24,12 +24,12 @@ If you need it, just open a pull request.
 
 ## Install in the Browser
 
-TO BE DONE!
+WORK IN PROGRESS! [#3](http://github.com/mcollina/levelgraph-jsonld/issues/3)
 
 ## Usage
 
 Adding support for JSON-LD to LevelGraph is easy:
-```
+```javascript
 var levelgraph = require("levelgraph")
   , jsonld     = require("levelgraph-jsonld")
   , db         = jsonld(levelgraph("yourdb"));
@@ -37,8 +37,9 @@ var levelgraph = require("levelgraph")
 
 ### Put
 
-Storing a JSON-LD file in the database is extremey easy:
-```
+Please keep in mind that LevelGraph-JSONLD __doesn't store the original
+JSON-LD document but decomposes it into triples__! Storing triples from JSON-LD document is extremely easy:
+```javascript
 var manu = {
     "@context": {
       "name": "http://xmlns.com/foaf/0.1/name"
@@ -57,18 +58,18 @@ db.jsonld.put(manu, function(err, obj) {
 });
 ```
 
-if the object as no `'@id'` key, one will be generated for you,
-using a UUID and the `'base'` argument, like so:
-```
+if the top level objects have no `'@id'` key, one will be generated for
+each, using a UUID and the `'base'` argument, like so:
+```javascript
 delete manu["@id"];
 db.jsonld.put(manu, { base: "http://this/is/an/iri" }, function(err, obj) {
   // obj["@id"] will be something like
-http://this/is/an/iri/b1e783b0-eda6-11e2-9540-d7575689f4bc
+  // http://this/is/an/iri/b1e783b0-eda6-11e2-9540-d7575689f4bc
 });
 ```
 
 `'base'` can also be specified when you create the db:
-```
+```javascript
 var levelgraph = require("levelgraph")
   , jsonld     = require("levelgraph-jsonld")
   , opts       = { base: "http://matteocollina.com/base" }
@@ -76,20 +77,20 @@ var levelgraph = require("levelgraph")
 ```
 
 __LevelGraph-JSONLD__ also support nested objects, like so:
-```
+```javascript
 var nested = {
-                 "@context": {
-                     "name": "http://xmlns.com/foaf/0.1/name"
-                   , "knows": "http://xmlns.com/foaf/0.1/knows"
-                 }
-               , "@id": "http://matteocollina.com"
-               , "name": "matteo"
-               , "knows": [{
-                     "name": "daniele"
-                 }, {
-                     "name": "lucio"
-                 }]
-             };
+    "@context": {
+        "name": "http://xmlns.com/foaf/0.1/name"
+      , "knows": "http://xmlns.com/foaf/0.1/knows"
+    }
+  , "@id": "http://matteocollina.com"
+  , "name": "matteo"
+  , "knows": [{
+        "name": "daniele"
+    }, {
+        "name": "lucio"
+    }]
+};
 
 db.jsonld.put(nested, function(err, obj) {
   // do something...
@@ -98,8 +99,8 @@ db.jsonld.put(nested, function(err, obj) {
 
 ### Get
 
-Retrieving a JSON-LD document from the store requires its `'@id'`:
-```
+Retrieving a JSON-LD object from the store requires its `'@id'`:
+```javascript
 db.jsonld.get(manu["@id"], { "@context": manu["@context"] }, function(err, obj) {
   // obj will be the very same of the manu object
 });
@@ -108,22 +109,22 @@ db.jsonld.get(manu["@id"], { "@context": manu["@context"] }, function(err, obj) 
 The format of the loaded object is entirely specified by the
 `'@context'`, so have fun :).
 
-As with `'put'` it correctly support nested objects, but it
-inserts `'@id'` properties for them, like so:
-```
+As with `'put'` it correctly support nested objects. If nested objects didn't originally include `'@id'` properties, now they will have them since `'put'` generates them by using UUID and formats
+them as *blank node identifiers*:
+```javascript
 var nested = {
-                 "@context": {
-                     "name": "http://xmlns.com/foaf/0.1/name"
-                   , "knows": "http://xmlns.com/foaf/0.1/knows"
-                 }
-               , "@id": "http://matteocollina.com"
-               , "name": "matteo"
-               , "knows": [{
-                     "name": "daniele"
-                 }, {
-                     "name": "lucio"
-                 }]
-             };
+    "@context": {
+        "name": "http://xmlns.com/foaf/0.1/name"
+      , "knows": "http://xmlns.com/foaf/0.1/knows"
+    }
+  , "@id": "http://matteocollina.com"
+  , "name": "matteo"
+  , "knows": [{
+        "name": "daniele"
+    }, {
+        "name": "lucio"
+    }]
+};
 
 db.jsonld.put(nested, function(err, obj) {
   // obj will be 
@@ -135,19 +136,21 @@ db.jsonld.put(nested, function(err, obj) {
   //   , "@id": "http://matteocollina.com"
   //   , "name": "matteo"
   //   , "knows": [{
-  //         "name": "daniele"
+  //         "@id": "_:7053c150-5fea-11e3-a62e-adadc4e3df79"
+  //       , "name": "daniele"
   //     }, {
+  //         "@id": "_:9d2bb59d-3baf-42ff-ba5d-9f8eab34ada5"
   //         "name": "lucio"
   //     }]
   // }
 });
 ```
 
-### Deleting
+### Delete
 
 In order to delete an object, you can just pass it's `'@id'` to the
 `'@del'` method:
-```
+```javascript
 db.jsonld.del(manu["@id"], function(err) {
   // do something after it is deleted!
 });
@@ -157,20 +160,20 @@ db.jsonld.del(manu["@id"], function(err) {
 
 __LevelGraph-JSONLD__ does not support searching for objects, because
 that problem is already solved by __LevelGraph__ itself, like these:
-```
+```javascript
 var nested = {
-                 "@context": {
-                     "name": "http://xmlns.com/foaf/0.1/name"
-                   , "knows": "http://xmlns.com/foaf/0.1/knows"
-                 }
-               , "@id": "http://matteocollina.com"
-               , "name": "matteo"
-               , "knows": [{
-                     "name": "daniele"
-                 }, {
-                     "name": "lucio"
-                 }]
-             };
+    "@context": {
+        "name": "http://xmlns.com/foaf/0.1/name"
+      , "knows": "http://xmlns.com/foaf/0.1/knows"
+    }
+  , "@id": "http://matteocollina.com"
+  , "name": "matteo"
+  , "knows": [{
+        "name": "daniele"
+    }, {
+        "name": "lucio"
+    }]
+};
 
 db.jsonld.put(nested, function(err) {
   db.join([{
