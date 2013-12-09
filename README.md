@@ -159,35 +159,65 @@ db.jsonld.del(manu["@id"], function(err) {
 ### Searching with LevelGraph
 
 __LevelGraph-JSONLD__ does not support searching for objects, because
-that problem is already solved by __LevelGraph__ itself, like these:
+that problem is already solved by __LevelGraph__ itself. This example
+search finds friends living near Paris:
 ```javascript
-var nested = {
+var manu = {
     "@context": {
-        "name": "http://xmlns.com/foaf/0.1/name"
-      , "knows": "http://xmlns.com/foaf/0.1/knows"
+        "@vocab": "http://xmlns.com/foaf/0.1/"
+      , "homepage": { "@type": "@id" }
+      , "knows": { "@type": "@id" }
+      , "based_near": { "@type": "@id" }
     }
-  , "@id": "http://matteocollina.com"
-  , "name": "matteo"
-  , "knows": [{
-        "name": "daniele"
+  , "@id": "http://manu.sporny.org#person"
+  , "name": "Manu Sporny"
+  , "homepage": "http://manu.sporny.org/"
+  , "knows": [
+    {
+      "@id": "https://my-profile.eu/people/deiu/card#me",
+      "name": "Andrei Vlad Sambra",
+      "based_near": "http://dbpedia.org/resource/Paris"
     }, {
-        "name": "lucio"
-    }]
-};
+      "@id": "http://melvincarvalho.com/#me",
+      "name": "Melvin Carvalho",
+      "based_near": "http://dbpedia.org/resource/Honolulu"
+    }, {
+      "@id": "http://bblfish.net/people/henry/card#me",
+      "name": "Henry Story",
+      "based_near": "http://dbpedia.org/resource/Paris"
+    }, {
+      "@id": "http://presbrey.mit.edu/foaf#presbrey",
+      "name": "Joe Presbrey",
+      "based_near": "http://dbpedia.org/resource/Cambridge"
+    }
+  ]
+}
 
-db.jsonld.put(nested, function(err) {
+var paris = "http://dbpedia.org/resource/Paris";
+
+db.jsonld.put(manu, function(){
   db.join([{
-      subject: db.v("person")
-    , predicate: "http://xmlns.com/foaf/0.1/knows"
-    , object: db.v("friend")
+    subject: manu["@id"],
+    predicate: "http://xmlns.com/foaf/0.1/knows",
+    object: db.v("webid")
   }, {
-      subject: db.v("friend")
-    , predicate: "http://xmlns.com/foaf/0.1/knows"
-    , object: "daniele"
-  }], function(err, solutions) {
-    // The solutions will be:
-    // 1. { person: "http://matteocollina.com", friend: "_:abcde" }
-    // 1. { person: "http://matteocollina.com", friend: "_:efghi" }
+    subject: db.v("webid"),
+    predicate: "http://xmlns.com/foaf/0.1/based_near",
+    object: paris
+  }, {
+    subject: db.v("webid"),
+    predicate: "http://xmlns.com/foaf/0.1/name",
+    object: db.v("name")
+  }
+  ], function(err, solution) {
+    // solution contains
+    // [{
+    //   webid: "http://bblfish.net/people/henry/card#me",
+    //   name: "Henry Story"
+    // }, {
+    //   webid: "https://my-profile.eu/people/deiu/card#me",
+    //   name: "Andrei Vlad Sambra"
+    // }]
   });
 });
 ```

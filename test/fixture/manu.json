@@ -1,10 +1,7 @@
 {
     "@context": {
-        "name": "http://xmlns.com/foaf/0.1/name"
-      , "homepage": {
-        "@id": "http://xmlns.com/foaf/0.1/homepage"
-        , "@type": "@id"
-      }
+        "@vocab": "http://xmlns.com/foaf/0.1/"
+      , "homepage": { "@type": "@id" }
     }
   , "@id": "http://manu.sporny.org#person"
   , "name": "Manu Sporny"
