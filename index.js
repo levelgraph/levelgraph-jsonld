@@ -1,11 +1,10 @@
 
 var jsonld = require("jsonld")
   , uuid   = require("uuid")
-  , IRI = /^(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/i
   , RDFTYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
   , XSDTYPE = "http://www.w3.org/2001/XMLSchema#"
   , async = require("async")
-  , blanksRegexp = /^_:b\d+$/;
+  , N3Util = require("n3/lib/N3Util");
 
 function levelgraphJSONLD(db, jsonldOpts) {
 
@@ -35,27 +34,34 @@ function levelgraphJSONLD(db, jsonldOpts) {
       });
 
       triples["@default"].map(function(triple) {
+
         return ["subject", "predicate", "object"].reduce(function(acc, key) {
-          var value = triple[key].value;
-          if (value.match(blanksRegexp)) {
-            if (!blanks[value]) {
-              blanks[value] = "_:" + uuid.v1();
+          var node = triple[key];
+          // generate UUID to identify blank nodes
+          // uses type field set to 'blank node' by jsonld.js toRDF()
+          if (node.type === "blank node") {
+            if (!blanks[node.value]) {
+              blanks[node.value] = "_:" + uuid.v1();
             }
-            value = blanks[value];
+            node.value = blanks[node.value];
           }
-          // preserve object data type if other then string
-          if(key === "object" && triple.object.datatype &&  triple.object.datatype.match(XSDTYPE)){
-            if(triple.object.datatype !== "http://www.w3.org/2001/XMLSchema#string"){
-              value = '"' + triple.object.value + '"^^<' + triple.object.datatype + '>';
+          // preserve object data types using double quotation for literals
+          // FIXME support language tags
+          if(key === "object" && triple.object.datatype && triple.object.datatype.match(XSDTYPE)){
+            if(triple.object.datatype){
+              if(triple.object.datatype === "http://www.w3.org/2001/XMLSchema#string"){
+                node.value = '"' + triple.object.value + '"';
+              } else {
+                node.value = '"' + triple.object.value + '"^^<' + triple.object.datatype + '>';
+              }
             }
           }
-          acc[key] = value;
+          acc[key] = node.value;
           return acc;
         }, {});
       }).forEach(function(triple) {
         stream.write(triple);
       });
-
       stream.end();
     });
   };
@@ -118,6 +124,42 @@ function levelgraphJSONLD(db, jsonldOpts) {
     });
   };
 
+  // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
+  var coerceLiteral = function(literal) {
+    var TYPES = {
+      PLAIN: "http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral",
+      BOOLEAN: "http://www.w3.org/2001/XMLSchema#boolean",
+      INTEGER: "http://www.w3.org/2001/XMLSchema#integer",
+      DOUBLE: "http://www.w3.org/2001/XMLSchema#double",
+      STRING: "http://www.w3.org/2001/XMLSchema#string",
+    };
+    var value = N3Util.getLiteralValue(literal);
+    var type = N3Util.getLiteralType(literal);
+    switch (type) {
+      case TYPES.STRING:
+      case TYPES.PLAIN:
+        literal = value;
+        break;
+      case TYPES.INTEGER:
+        literal = parseInt(value, 10);
+        break;
+      case TYPES.DOUBLE:
+        literal = parseFloat(value);
+        break;
+      case TYPES.BOOLEAN:
+        if (value === "true" || value === "1") {
+          literal = true;
+        }
+        if (value === "false" || value === "0") {
+          literal = false;
+        }
+        break;
+      default:
+        // FIXME deal with other types
+    }
+    return literal;
+  };
+
   var fetchExpandedTriples = function(iri, memo, callback) {
     if (typeof memo === "function") {
       callback = memo;
@@ -135,7 +177,6 @@ function levelgraphJSONLD(db, jsonldOpts) {
         if (!acc[triple.subject]) {
           acc[triple.subject] = { "@id": triple.subject };
         }
-
         if (triple.predicate === RDFTYPE) {
           if (acc[triple.subject]["@type"]) {
             acc[triple.subject]["@type"] = [acc[triple.subject]["@type"]];
@@ -144,31 +185,14 @@ function levelgraphJSONLD(db, jsonldOpts) {
             acc[triple.subject]["@type"] = triple.object;
           }
           cb(null, acc);
-        } else if (triple.object.indexOf("_:") !== 0) {
+        } else if (!N3Util.isBlank(triple.object)) {
           acc[triple.subject][triple.predicate] = {};
-          key = (triple.object.match(IRI)) ? "@id" : "@value";
-          // coerce
-          var coercionCheck = triple.object.match(/"(.*)"\^\^<http:\/\/www.w3.org\/2001\/XMLSchema#(.*)>/);
-          if (coercionCheck) {
-            switch (coercionCheck[2]) {
-              case "boolean":
-                if (coercionCheck[1] === "true") {
-                  triple.object = true;
-                }
-                if (coercionCheck[1] === "false") {
-                  triple.object = false;
-                }
-                break;
-              case "integer":
-                triple.object = parseInt(coercionCheck[1], 10);
-                break;
-              case "double":
-                triple.object = parseFloat(coercionCheck[1]);
-                break;
-              case "string":
-                triple.object = coercionCheck[1];
-                break;
-            }
+          if (N3Util.isUri(triple.object)) {
+            key = "@id";
+          } else if (N3Util.isLiteral(triple.object)) {
+            key = "@value";
+            triple.object = coerceLiteral(triple.object);
+            //FIXME support language tags
           }
           acc[triple.subject][triple.predicate][key] = triple.object;
           cb(null, acc);

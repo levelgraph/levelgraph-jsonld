@@ -3,7 +3,7 @@ var level  = require("level-test")()
   , graph  = require("levelgraph")
   , jsonld = require("../");
 
-describe("jsonld.put", function() {
+describe("db.join", function() {
 
   var db, gang, manu;
 
@@ -41,10 +41,10 @@ describe("jsonld.put", function() {
     var paris = "http://dbpedia.org/resource/Paris";
     var parisians = [{
       webid: "http://bblfish.net/people/henry/card#me",
-      name: "Henry Story"
+      name: '"Henry Story"'
     }, {
       webid: "https://my-profile.eu/people/deiu/card#me",
-      name: "Andrei Vlad Sambra"
+      name: '"Andrei Vlad Sambra"'
     }];
 
     db.jsonld.put(manu, function(){

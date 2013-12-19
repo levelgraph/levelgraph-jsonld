@@ -105,7 +105,7 @@ describe("jsonld.put data type", function() {
         db.get({
           predicate: "http://schema.org/contentRating"
         }, function(err, triples) {
-          expect(triples[0].object).to.equal("MPAA PG-13");
+          expect(triples[0].object).to.equal('"MPAA PG-13"');
           done();
         });
       });

@@ -25,7 +25,6 @@ describe("jsonld.put", function() {
       db.get({
           subject: "http://manu.sporny.org#person"
         , predicate: "http://xmlns.com/foaf/0.1/name"
-        , object: "Manu Sporny"
       }, function(err, triples) {
         expect(triples).to.have.length(1);
         done();
@@ -61,7 +60,6 @@ describe("jsonld.put", function() {
       db.get({
           subject: "http://levelgraph.org/tests/42"
         , predicate: "http://xmlns.com/foaf/0.1/name"
-        , object: "Manu Sporny"
       }, function(err, triples) {
         expect(triples).to.have.length(1);
         done();
@@ -78,7 +76,6 @@ describe("jsonld.put", function() {
       db.join({
           subject: db.v("subject")
         , predicate: "http://xmlns.com/foaf/0.1/name"
-        , object: "Manu Sporny"
       }, function(err, contexts) {
         expect(contexts[0].subject).to.match(baseRegEx);
         done();
@@ -196,7 +193,6 @@ describe("jsonld.put with default base", function() {
       db.get({
           subject: "http://levelgraph.io/ahah/42"
         , predicate: "http://xmlns.com/foaf/0.1/name"
-        , object: "Manu Sporny"
       }, function(err, triples) {
         expect(triples).to.have.length(1);
         done();
@@ -215,7 +211,7 @@ describe("jsonld.put with default base", function() {
       }, {
           subject: db.v("bnode")
         , predicate: "http://purl.org/goodrelations/v1#hasCurrency"
-        , object: "USD"
+        , object: '"USD"'
       }], function(err, contexts) {
         expect(contexts[0].bnode).to.exist;
         done();
