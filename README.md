@@ -38,7 +38,12 @@ var levelgraph = require("levelgraph")
 ### Put
 
 Please keep in mind that LevelGraph-JSONLD __doesn't store the original
-JSON-LD document but decomposes it into triples__! Storing triples from JSON-LD document is extremely easy:
+JSON-LD document but decomposes it into triples__! It stores literals
+double quoted with datatype if other then string. If you use plain
+LevelGraph methods, instead trying to match number `42` you need to try
+matching `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`
+
+ Storing triples from JSON-LD document is extremely easy:
 ```javascript
 var manu = {
     "@context": {
@@ -212,11 +217,11 @@ db.jsonld.put(manu, function(){
   ], function(err, solution) {
     // solution contains
     // [{
-    //   webid: "http://bblfish.net/people/henry/card#me",
-    //   name: "Henry Story"
+    //   webid: 'http://bblfish.net/people/henry/card#me',
+    //   name: '"Henry Story"'
     // }, {
-    //   webid: "https://my-profile.eu/people/deiu/card#me",
-    //   name: "Andrei Vlad Sambra"
+    //   webid: 'https://my-profile.eu/people/deiu/card#me',
+    //   name: '"Andrei Vlad Sambra"'
     // }]
   });
 });
