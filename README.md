@@ -30,9 +30,9 @@ WORK IN PROGRESS! [#3](http://github.com/mcollina/levelgraph-jsonld/issues/3)
 
 Adding support for JSON-LD to LevelGraph is easy:
 ```javascript
-var levelgraph = require("levelgraph")
-  , jsonld     = require("levelgraph-jsonld")
-  , db         = jsonld(levelgraph("yourdb"));
+var levelgraph = require('levelgraph')
+  , jsonld     = require('levelgraph-jsonld')
+  , db         = jsonld(levelgraph('yourdb'));
 ```
 
 ### Put
@@ -66,19 +66,19 @@ db.jsonld.put(manu, function(err, obj) {
 if the top level objects have no `'@id'` key, one will be generated for
 each, using a UUID and the `'base'` argument, like so:
 ```javascript
-delete manu["@id"];
-db.jsonld.put(manu, { base: "http://this/is/an/iri" }, function(err, obj) {
-  // obj["@id"] will be something like
+delete manu['@id'];
+db.jsonld.put(manu, { base: 'http://this/is/an/iri' }, function(err, obj) {
+  // obj['@id'] will be something like
   // http://this/is/an/iri/b1e783b0-eda6-11e2-9540-d7575689f4bc
 });
 ```
 
 `'base'` can also be specified when you create the db:
 ```javascript
-var levelgraph = require("levelgraph")
-  , jsonld     = require("levelgraph-jsonld")
-  , opts       = { base: "http://matteocollina.com/base" }
-  , db         = jsonld(levelgraph("yourdb"), opts);
+var levelgraph = require('levelgraph')
+  , jsonld     = require('levelgraph-jsonld')
+  , opts       = { base: 'http://matteocollina.com/base' }
+  , db         = jsonld(levelgraph('yourdb'), opts);
 ```
 
 __LevelGraph-JSONLD__ also support nested objects, like so:
@@ -106,7 +106,7 @@ db.jsonld.put(nested, function(err, obj) {
 
 Retrieving a JSON-LD object from the store requires its `'@id'`:
 ```javascript
-db.jsonld.get(manu["@id"], { "@context": manu["@context"] }, function(err, obj) {
+db.jsonld.get(manu['@id'], { '@context': manu['@context'] }, function(err, obj) {
   // obj will be the very same of the manu object
 });
 ```
@@ -156,7 +156,7 @@ db.jsonld.put(nested, function(err, obj) {
 In order to delete an object, you can just pass it's `'@id'` to the
 `'@del'` method:
 ```javascript
-db.jsonld.del(manu["@id"], function(err) {
+db.jsonld.del(manu['@id'], function(err) {
   // do something after it is deleted!
 });
 ```
@@ -198,21 +198,21 @@ var manu = {
   ]
 }
 
-var paris = "http://dbpedia.org/resource/Paris";
+var paris = 'http://dbpedia.org/resource/Paris';
 
 db.jsonld.put(manu, function(){
   db.search([{
-    subject: manu["@id"],
-    predicate: "http://xmlns.com/foaf/0.1/knows",
-    object: db.v("webid")
+    subject: manu['@id'],
+    predicate: 'http://xmlns.com/foaf/0.1/knows',
+    object: db.v('webid')
   }, {
-    subject: db.v("webid"),
-    predicate: "http://xmlns.com/foaf/0.1/based_near",
+    subject: db.v('webid'),
+    predicate: 'http://xmlns.com/foaf/0.1/based_near',
     object: paris
   }, {
-    subject: db.v("webid"),
-    predicate: "http://xmlns.com/foaf/0.1/name",
-    object: db.v("name")
+    subject: db.v('webid'),
+    predicate: 'http://xmlns.com/foaf/0.1/name',
+    object: db.v('name')
   }
   ], function(err, solution) {
     // solution contains

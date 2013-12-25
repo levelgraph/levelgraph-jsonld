@@ -1,18 +1,18 @@
 
-var level  = require("level-test")()
-  , graph  = require("levelgraph")
-  , jsonld = require("../");
+var level  = require('level-test')()
+  , graph  = require('levelgraph')
+  , jsonld = require('../');
 
-describe("db.search", function() {
+describe('db.search', function() {
 
   var db, gang, manu;
 
   beforeEach(function() {
     db = jsonld(graph(level()));
-    manu = fixture("manu.json");
-    manu["@context"]["knows"] = { "@type": "@id" };
-    manu["@context"]["based_near"] = { "@type": "@id" };
-    manu["knows"] = [
+    manu = fixture('manu.json');
+    manu['@context']['knows'] = { "@type": "@id" };
+    manu['@context']['based_near'] = { "@type": "@id" };
+    manu['knows'] = [
     {
       "@id": "https://my-profile.eu/people/deiu/card#me",
       "name": "Andrei Vlad Sambra",
@@ -37,29 +37,29 @@ describe("db.search", function() {
     db.close(done);
   });
 
-  it("should find homies in Paris", function(done) {
-    var paris = "http://dbpedia.org/resource/Paris";
+  it('should find homies in Paris', function(done) {
+    var paris = 'http://dbpedia.org/resource/Paris';
     var parisians = [{
-      webid: "http://bblfish.net/people/henry/card#me",
+      webid: 'http://bblfish.net/people/henry/card#me',
       name: '"Henry Story"'
     }, {
-      webid: "https://my-profile.eu/people/deiu/card#me",
+      webid: 'https://my-profile.eu/people/deiu/card#me',
       name: '"Andrei Vlad Sambra"'
     }];
 
     db.jsonld.put(manu, function(){
       db.search([{
-        subject: manu["@id"],
-        predicate: "http://xmlns.com/foaf/0.1/knows",
-        object: db.v("webid")
+        subject: manu['@id'],
+        predicate: 'http://xmlns.com/foaf/0.1/knows',
+        object: db.v('webid')
       }, {
-        subject: db.v("webid"),
-        predicate: "http://xmlns.com/foaf/0.1/based_near",
+        subject: db.v('webid'),
+        predicate: 'http://xmlns.com/foaf/0.1/based_near',
         object: paris
       }, {
-        subject: db.v("webid"),
-        predicate: "http://xmlns.com/foaf/0.1/name",
-        object: db.v("name")
+        subject: db.v('webid'),
+        predicate: 'http://xmlns.com/foaf/0.1/name',
+        object: db.v('name')
       }
       ], function(err, solution) {
         expect(solution).to.eql(parisians);
