@@ -3,7 +3,7 @@ var level  = require("level-test")()
   , graph  = require("levelgraph")
   , jsonld = require("../");
 
-describe("db.join", function() {
+describe("db.search", function() {
 
   var db, gang, manu;
 
@@ -48,7 +48,7 @@ describe("db.join", function() {
     }];
 
     db.jsonld.put(manu, function(){
-      db.join([{
+      db.search([{
         subject: manu["@id"],
         predicate: "http://xmlns.com/foaf/0.1/knows",
         object: db.v("webid")

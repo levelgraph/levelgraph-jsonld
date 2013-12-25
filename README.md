@@ -201,7 +201,7 @@ var manu = {
 var paris = "http://dbpedia.org/resource/Paris";
 
 db.jsonld.put(manu, function(){
-  db.join([{
+  db.search([{
     subject: manu["@id"],
     predicate: "http://xmlns.com/foaf/0.1/knows",
     object: db.v("webid")

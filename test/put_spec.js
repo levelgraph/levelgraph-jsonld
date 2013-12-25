@@ -73,11 +73,11 @@ describe("jsonld.put", function() {
     var baseRegEx = /^http:\/\/levelgraph.org\/tests\//;
 
     db.jsonld.put(manu, { base: baseString }, function() {
-      db.join({
+      db.search({
           subject: db.v("subject")
         , predicate: "http://xmlns.com/foaf/0.1/name"
-      }, function(err, contexts) {
-        expect(contexts[0].subject).to.match(baseRegEx);
+      }, function(err, solutions) {
+        expect(solutions[0].subject).to.match(baseRegEx);
         done();
       });
     });
@@ -204,7 +204,7 @@ describe("jsonld.put with default base", function() {
     var tesla = fixture("tesla.json");
 
     db.jsonld.put(tesla, function() {
-      db.join([{
+      db.search([{
           subject: "http://example.org/cars/for-sale#tesla"
         , predicate: "http://purl.org/goodrelations/v1#hasPriceSpecification"
         , object: db.v("bnode")
@@ -212,8 +212,8 @@ describe("jsonld.put with default base", function() {
           subject: db.v("bnode")
         , predicate: "http://purl.org/goodrelations/v1#hasCurrency"
         , object: '"USD"'
-      }], function(err, contexts) {
-        expect(contexts[0].bnode).to.exist;
+      }], function(err, solutions) {
+        expect(solutions[0].bnode).to.exist;
         done();
       });
     });

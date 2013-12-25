@@ -35,11 +35,11 @@
     "n3": "~0.2.1"
   },
   "peerDependencies": {
-    "levelgraph": "~0.6.1"
+    "levelgraph": "~0.7.0"
   },
   "devDependencies": {
     "mocha": "~1.10.0",
-    "levelgraph": "~0.6.1",
+    "levelgraph": "~0.7.0",
     "level-test": "~1.4.0",
     "chai": "~1.7.2",
     "lodash": "~2.4.1"
