@@ -29,7 +29,7 @@
   "author": "Matteo Collina <hello@matteocollina.com>",
   "license": "MIT",
   "dependencies": {
-    "jsonld": "0.1.0",
+    "jsonld": "~0.1.25",
     "uuid": "~1.4.1",
     "async": "~0.2.9",
     "n3": "~0.2.1"
@@ -38,10 +38,10 @@
     "levelgraph": "~0.7.0"
   },
   "devDependencies": {
-    "mocha": "~1.10.0",
+    "mocha": "~1.16.2",
     "levelgraph": "~0.7.0",
     "level-test": "~1.4.0",
-    "chai": "~1.7.2",
+    "chai": "~1.8.1",
     "lodash": "~2.4.1"
   }
 }
