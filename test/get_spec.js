@@ -1,8 +1,7 @@
-
-var level  = require('level-test')()
-  , graph  = require('levelgraph')
-  , jsonld = require('../')
-  , fs     = require('fs');
+var level  = require('level-test')(),
+    graph  = require('levelgraph'),
+    jsonld = require('../'),
+    fs     = require('fs');
 
 describe('jsonld.get', function() {
 

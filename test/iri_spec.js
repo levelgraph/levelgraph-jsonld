@@ -1,13 +1,12 @@
-
-var level  = require('level-test')()
-  , graph  = require('levelgraph')
-  , jsonld = require('../')
-  , _ = require('lodash');
+var level  = require('level-test')(),
+    graph  = require('levelgraph'),
+    jsonld = require('../'),
+    _ = require('lodash');
 
 describe('IRI', function() {
 
-  var db
-    , manu = fixture('manu.json');
+  var db,
+      manu = fixture('manu.json');
 
   beforeEach(function() {
     db = jsonld(graph(level()), { base: 'http://levelgraph.io/get' } );

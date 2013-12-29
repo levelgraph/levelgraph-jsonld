@@ -30,9 +30,9 @@ WORK IN PROGRESS! [#3](http://github.com/mcollina/levelgraph-jsonld/issues/3)
 
 Adding support for JSON-LD to LevelGraph is easy:
 ```javascript
-var levelgraph = require('levelgraph')
-  , jsonld     = require('levelgraph-jsonld')
-  , db         = jsonld(levelgraph('yourdb'));
+var levelgraph = require('levelgraph'),
+    jsonld     = require('levelgraph-jsonld'),
+    db         = jsonld(levelgraph('yourdb'));
 ```
 
 ### Put
@@ -46,17 +46,17 @@ matching `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`
  Storing triples from JSON-LD document is extremely easy:
 ```javascript
 var manu = {
-    "@context": {
-      "name": "http://xmlns.com/foaf/0.1/name"
-      , "homepage": {
-        "@id": "http://xmlns.com/foaf/0.1/homepage"
-        , "@type": "@id"
-      }
+  "@context": {
+    "name": "http://xmlns.com/foaf/0.1/name",
+    "homepage": {
+      "@id": "http://xmlns.com/foaf/0.1/homepage",
+      "@type": "@id"
     }
-  , "@id": "http://manu.sporny.org#person"
-  , "name": "Manu Sporny"
-  , "homepage": "http://manu.sporny.org/"
-}
+  },
+  "@id": "http://manu.sporny.org#person",
+  "name": "Manu Sporny",
+  "homepage": "http://manu.sporny.org/"
+};
 
 db.jsonld.put(manu, function(err, obj) {
   // do something after the obj is inserted
@@ -75,26 +75,26 @@ db.jsonld.put(manu, { base: 'http://this/is/an/iri' }, function(err, obj) {
 
 `'base'` can also be specified when you create the db:
 ```javascript
-var levelgraph = require('levelgraph')
-  , jsonld     = require('levelgraph-jsonld')
-  , opts       = { base: 'http://matteocollina.com/base' }
-  , db         = jsonld(levelgraph('yourdb'), opts);
+var levelgraph = require('levelgraph'),
+    jsonld     = require('levelgraph-jsonld'),
+    opts       = { base: 'http://matteocollina.com/base' },
+    db         = jsonld(levelgraph('yourdb'), opts);
 ```
 
 __LevelGraph-JSONLD__ also support nested objects, like so:
 ```javascript
 var nested = {
-    "@context": {
-        "name": "http://xmlns.com/foaf/0.1/name"
-      , "knows": "http://xmlns.com/foaf/0.1/knows"
-    }
-  , "@id": "http://matteocollina.com"
-  , "name": "matteo"
-  , "knows": [{
-        "name": "daniele"
-    }, {
-        "name": "lucio"
-    }]
+  "@context": {
+    "name": "http://xmlns.com/foaf/0.1/name",
+    "knows": "http://xmlns.com/foaf/0.1/knows"
+  },
+  "@id": "http://matteocollina.com",
+  "name": "Matteo",
+  "knows": [{
+    "name": "Daniele"
+  }, {
+    "name": "Lucio"
+  }]
 };
 
 db.jsonld.put(nested, function(err, obj) {
@@ -118,35 +118,35 @@ As with `'put'` it correctly support nested objects. If nested objects didn't or
 them as *blank node identifiers*:
 ```javascript
 var nested = {
-    "@context": {
-        "name": "http://xmlns.com/foaf/0.1/name"
-      , "knows": "http://xmlns.com/foaf/0.1/knows"
-    }
-  , "@id": "http://matteocollina.com"
-  , "name": "matteo"
-  , "knows": [{
-        "name": "daniele"
-    }, {
-        "name": "lucio"
-    }]
+  "@context": {
+    "name": "http://xmlns.com/foaf/0.1/name",
+    "knows": "http://xmlns.com/foaf/0.1/knows"
+  },
+  "@id": "http://matteocollina.com",
+  "name": "Matteo",
+  "knows": [{
+    "name": "Daniele"
+  }, {
+    "name": "Lucio"
+  }]
 };
 
 db.jsonld.put(nested, function(err, obj) {
   // obj will be 
   // {
-  //     "@context": {
-  //         "name": "http://xmlns.com/foaf/0.1/name"
-  //       , "knows": "http://xmlns.com/foaf/0.1/knows"
-  //     }
-  //   , "@id": "http://matteocollina.com"
-  //   , "name": "matteo"
-  //   , "knows": [{
-  //         "@id": "_:7053c150-5fea-11e3-a62e-adadc4e3df79"
-  //       , "name": "daniele"
-  //     }, {
-  //         "@id": "_:9d2bb59d-3baf-42ff-ba5d-9f8eab34ada5"
-  //         "name": "lucio"
-  //     }]
+  //   "@context": {
+  //     "name": "http://xmlns.com/foaf/0.1/name",
+  //     "knows": "http://xmlns.com/foaf/0.1/knows"
+  //   },
+  //   "@id": "http://matteocollina.com",
+  //   "name": "Matteo",
+  //   "knows": [{
+  //     "@id": "_:7053c150-5fea-11e3-a62e-adadc4e3df79",
+  //     "name": "Daniele"
+  //   }, {
+  //     "@id": "_:9d2bb59d-3baf-42ff-ba5d-9f8eab34ada5",
+  //     "name": "Lucio"
+  //   }]
   // }
 });
 ```
@@ -168,35 +168,33 @@ that problem is already solved by __LevelGraph__ itself. This example
 search finds friends living near Paris:
 ```javascript
 var manu = {
-    "@context": {
-        "@vocab": "http://xmlns.com/foaf/0.1/"
-      , "homepage": { "@type": "@id" }
-      , "knows": { "@type": "@id" }
-      , "based_near": { "@type": "@id" }
-    }
-  , "@id": "http://manu.sporny.org#person"
-  , "name": "Manu Sporny"
-  , "homepage": "http://manu.sporny.org/"
-  , "knows": [
-    {
-      "@id": "https://my-profile.eu/people/deiu/card#me",
-      "name": "Andrei Vlad Sambra",
-      "based_near": "http://dbpedia.org/resource/Paris"
-    }, {
-      "@id": "http://melvincarvalho.com/#me",
-      "name": "Melvin Carvalho",
-      "based_near": "http://dbpedia.org/resource/Honolulu"
-    }, {
-      "@id": "http://bblfish.net/people/henry/card#me",
-      "name": "Henry Story",
-      "based_near": "http://dbpedia.org/resource/Paris"
-    }, {
-      "@id": "http://presbrey.mit.edu/foaf#presbrey",
-      "name": "Joe Presbrey",
-      "based_near": "http://dbpedia.org/resource/Cambridge"
-    }
-  ]
-}
+  "@context": {
+    "@vocab": "http://xmlns.com/foaf/0.1/",
+    "homepage": { "@type": "@id" },
+    "knows": { "@type": "@id" },
+    "based_near": { "@type": "@id" }
+  },
+  "@id": "http://manu.sporny.org#person",
+  "name": "Manu Sporny",
+  "homepage": "http://manu.sporny.org/",
+  "knows": [{
+    "@id": "https://my-profile.eu/people/deiu/card#me",
+    "name": "Andrei Vlad Sambra",
+    "based_near": "http://dbpedia.org/resource/Paris"
+  }, {
+    "@id": "http://melvincarvalho.com/#me",
+    "name": "Melvin Carvalho",
+    "based_near": "http://dbpedia.org/resource/Honolulu"
+  }, {
+    "@id": "http://bblfish.net/people/henry/card#me",
+    "name": "Henry Story",
+    "based_near": "http://dbpedia.org/resource/Paris"
+  }, {
+    "@id": "http://presbrey.mit.edu/foaf#presbrey",
+    "name": "Joe Presbrey",
+    "based_near": "http://dbpedia.org/resource/Cambridge"
+  }]
+};
 
 var paris = 'http://dbpedia.org/resource/Paris';
 

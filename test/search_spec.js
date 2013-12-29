@@ -1,7 +1,6 @@
-
-var level  = require('level-test')()
-  , graph  = require('levelgraph')
-  , jsonld = require('../');
+var level  = require('level-test')(),
+    graph  = require('levelgraph'),
+    jsonld = require('../');
 
 describe('db.search', function() {
 
@@ -60,8 +59,7 @@ describe('db.search', function() {
         subject: db.v('webid'),
         predicate: 'http://xmlns.com/foaf/0.1/name',
         object: db.v('name')
-      }
-      ], function(err, solution) {
+      }], function(err, solution) {
         expect(solution).to.eql(parisians);
         done();
       });

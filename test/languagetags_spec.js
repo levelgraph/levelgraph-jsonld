@@ -1,6 +1,6 @@
-var level  = require('level-test')()
-  , graph  = require('levelgraph')
-  , jsonld = require('../');
+var level  = require('level-test')(),
+    graph  = require('levelgraph'),
+    jsonld = require('../');
 
 describe('jsonld.put language tags', function() {
 

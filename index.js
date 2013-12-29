@@ -1,11 +1,10 @@
-
-var jsonld = require('jsonld')
-  , uuid   = require('uuid')
-  , RDFTYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
-  , RDFLANGSTRING = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString'
-  , XSDTYPE = 'http://www.w3.org/2001/XMLSchema#'
-  , async = require('async')
-  , N3Util = require('n3/lib/N3Util'); // with browserify require('n3').Util would bundle more then needed!
+var jsonld = require('jsonld'),
+    uuid   = require('uuid'),
+    RDFTYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+    RDFLANGSTRING = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString',
+    XSDTYPE = 'http://www.w3.org/2001/XMLSchema#',
+    async = require('async'),
+    N3Util = require('n3/lib/N3Util'); // with browserify require('n3').Util would bundle more then needed!
 
 function levelgraphJSONLD(db, jsonldOpts) {
 

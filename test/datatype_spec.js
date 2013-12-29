@@ -1,8 +1,7 @@
 // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
-
-var level  = require('level-test')()
-  , graph  = require('levelgraph')
-  , jsonld = require('../');
+var level  = require('level-test')(),
+    graph  = require('levelgraph'),
+    jsonld = require('../');
 
 describe('jsonld.put data type', function() {
 
