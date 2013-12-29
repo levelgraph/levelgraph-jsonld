@@ -2,6 +2,7 @@
 var jsonld = require('jsonld')
   , uuid   = require('uuid')
   , RDFTYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+  , RDFLANGSTRING = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString'
   , XSDTYPE = 'http://www.w3.org/2001/XMLSchema#'
   , async = require('async')
   , N3Util = require('n3/lib/N3Util'); // with browserify require('n3').Util would bundle more then needed!
@@ -46,14 +47,15 @@ function levelgraphJSONLD(db, jsonldOpts) {
             node.value = blanks[node.value];
           }
           // preserve object data types using double quotation for literals
-          // FIXME support language tags
-          if(key === 'object' && triple.object.datatype && triple.object.datatype.match(XSDTYPE)){
-            if(triple.object.datatype){
+          if(key === 'object' && triple.object.datatype){
+            if(triple.object.datatype.match(XSDTYPE)){
               if(triple.object.datatype === 'http://www.w3.org/2001/XMLSchema#string'){
                 node.value = '"' + triple.object.value + '"';
               } else {
                 node.value = '"' + triple.object.value + '"^^<' + triple.object.datatype + '>';
               }
+            } else if(triple.object.datatype.match(RDFLANGSTRING)){
+                node.value = '"' + triple.object.value + '"@' + triple.object.language;
             }
           }
           acc[key] = node.value;
@@ -186,15 +188,17 @@ function levelgraphJSONLD(db, jsonldOpts) {
           }
           cb(null, acc);
         } else if (!N3Util.isBlank(triple.object)) {
-          acc[triple.subject][triple.predicate] = {};
+          var object = {};
           if (N3Util.isUri(triple.object)) {
-            key = '@id';
+            object['@id'] = triple.object;
           } else if (N3Util.isLiteral(triple.object)) {
-            key = '@value';
-            triple.object = coerceLiteral(triple.object);
-            //FIXME support language tags
+            object['@value'] = coerceLiteral(triple.object);
+            var language = N3Util.getLiteralLanguage(triple.object);
+            if (language) {
+              object['@language'] = language;
+            }
           }
-          acc[triple.subject][triple.predicate][key] = triple.object;
+          acc[triple.subject][triple.predicate] = object;
           cb(null, acc);
         } else {
           fetchExpandedTriples(triple.object, function(err, expanded) {
