@@ -4,7 +4,9 @@
   "description": "The Object Document Mapper for LevelGraph based on JSON-LD",
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --recursive test"
+    "test": "./node_modules/.bin/mocha --recursive test",
+    "coverage": "rm -rf coverage; istanbul cover _mocha -- --recursive --reporter spec --bail",
+    "publish-coverage": "cat coverage/lcov.info | coveralls"
   },
   "repository": {
     "type": "git",
@@ -42,6 +44,8 @@
     "levelgraph": "~0.7.1",
     "level-test": "~1.5.2",
     "chai": "~1.8.1",
-    "lodash": "~2.4.1"
+    "lodash": "~2.4.1",
+    "coveralls": "~2.5.0",
+    "istanbul": "~0.1.45"
   }
 }
