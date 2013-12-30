@@ -3,14 +3,15 @@ LevelGraph-JSONLD
 
 ![Logo](https://github.com/mcollina/node-levelgraph/raw/master/logo.png)
 
+[![Build Status](https://travis-ci.org/mcollina/levelgraph-jsonld.png)](https://travis-ci.org/mcollina/levelgraph-jsonld)
+[![Coverage Status](https://coveralls.io/repos/mcollina/levelgraph-jsonld/badge.png)](https://coveralls.io/r/mcollina/levelgraph-jsonld)
+[![Dependency Status](https://david-dm.org/mcollina/levelgraph-jsonld.png?theme=shields.io)](https://david-dm.org/mcollina/levelgraph-jsonld)
+
 __LevelGraph-JSONLD__ is a plugin for
 [LevelGraph](http://github.com/mcollina/levelgraph) that adds the
 ability to store, retrieve and delete JSON-LD objects.
 In fact, it is a full-bown Object-Document-Mapper (ODM) for
 __LevelGraph__.
-
-[![Build
-Status](https://travis-ci.org/mcollina/levelgraph-jsonld.png)](https://travis-ci.org/mcollina/levelgraph-jsonld)
 
 ## Install on Node.js
 
@@ -30,28 +31,33 @@ WORK IN PROGRESS! [#3](http://github.com/mcollina/levelgraph-jsonld/issues/3)
 
 Adding support for JSON-LD to LevelGraph is easy:
 ```javascript
-var levelgraph = require("levelgraph")
-  , jsonld     = require("levelgraph-jsonld")
-  , db         = jsonld(levelgraph("yourdb"));
+var levelgraph = require('levelgraph'),
+    jsonld     = require('levelgraph-jsonld'),
+    db         = jsonld(levelgraph('yourdb'));
 ```
 
 ### Put
 
 Please keep in mind that LevelGraph-JSONLD __doesn't store the original
-JSON-LD document but decomposes it into triples__! Storing triples from JSON-LD document is extremely easy:
+JSON-LD document but decomposes it into triples__! It stores literals
+double quoted with datatype if other then string. If you use plain
+LevelGraph methods, instead trying to match number `42` you need to try
+matching `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`
+
+ Storing triples from JSON-LD document is extremely easy:
 ```javascript
 var manu = {
-    "@context": {
-      "name": "http://xmlns.com/foaf/0.1/name"
-      , "homepage": {
-        "@id": "http://xmlns.com/foaf/0.1/homepage"
-        , "@type": "@id"
-      }
+  "@context": {
+    "name": "http://xmlns.com/foaf/0.1/name",
+    "homepage": {
+      "@id": "http://xmlns.com/foaf/0.1/homepage",
+      "@type": "@id"
     }
-  , "@id": "http://manu.sporny.org#person"
-  , "name": "Manu Sporny"
-  , "homepage": "http://manu.sporny.org/"
-}
+  },
+  "@id": "http://manu.sporny.org#person",
+  "name": "Manu Sporny",
+  "homepage": "http://manu.sporny.org/"
+};
 
 db.jsonld.put(manu, function(err, obj) {
   // do something after the obj is inserted
@@ -61,35 +67,35 @@ db.jsonld.put(manu, function(err, obj) {
 if the top level objects have no `'@id'` key, one will be generated for
 each, using a UUID and the `'base'` argument, like so:
 ```javascript
-delete manu["@id"];
-db.jsonld.put(manu, { base: "http://this/is/an/iri" }, function(err, obj) {
-  // obj["@id"] will be something like
+delete manu['@id'];
+db.jsonld.put(manu, { base: 'http://this/is/an/iri' }, function(err, obj) {
+  // obj['@id'] will be something like
   // http://this/is/an/iri/b1e783b0-eda6-11e2-9540-d7575689f4bc
 });
 ```
 
 `'base'` can also be specified when you create the db:
 ```javascript
-var levelgraph = require("levelgraph")
-  , jsonld     = require("levelgraph-jsonld")
-  , opts       = { base: "http://matteocollina.com/base" }
-  , db         = jsonld(levelgraph("yourdb"), opts);
+var levelgraph = require('levelgraph'),
+    jsonld     = require('levelgraph-jsonld'),
+    opts       = { base: 'http://matteocollina.com/base' },
+    db         = jsonld(levelgraph('yourdb'), opts);
 ```
 
 __LevelGraph-JSONLD__ also support nested objects, like so:
 ```javascript
 var nested = {
-    "@context": {
-        "name": "http://xmlns.com/foaf/0.1/name"
-      , "knows": "http://xmlns.com/foaf/0.1/knows"
-    }
-  , "@id": "http://matteocollina.com"
-  , "name": "matteo"
-  , "knows": [{
-        "name": "daniele"
-    }, {
-        "name": "lucio"
-    }]
+  "@context": {
+    "name": "http://xmlns.com/foaf/0.1/name",
+    "knows": "http://xmlns.com/foaf/0.1/knows"
+  },
+  "@id": "http://matteocollina.com",
+  "name": "Matteo",
+  "knows": [{
+    "name": "Daniele"
+  }, {
+    "name": "Lucio"
+  }]
 };
 
 db.jsonld.put(nested, function(err, obj) {
@@ -101,7 +107,7 @@ db.jsonld.put(nested, function(err, obj) {
 
 Retrieving a JSON-LD object from the store requires its `'@id'`:
 ```javascript
-db.jsonld.get(manu["@id"], { "@context": manu["@context"] }, function(err, obj) {
+db.jsonld.get(manu['@id'], { '@context': manu['@context'] }, function(err, obj) {
   // obj will be the very same of the manu object
 });
 ```
@@ -113,35 +119,35 @@ As with `'put'` it correctly support nested objects. If nested objects didn't or
 them as *blank node identifiers*:
 ```javascript
 var nested = {
-    "@context": {
-        "name": "http://xmlns.com/foaf/0.1/name"
-      , "knows": "http://xmlns.com/foaf/0.1/knows"
-    }
-  , "@id": "http://matteocollina.com"
-  , "name": "matteo"
-  , "knows": [{
-        "name": "daniele"
-    }, {
-        "name": "lucio"
-    }]
+  "@context": {
+    "name": "http://xmlns.com/foaf/0.1/name",
+    "knows": "http://xmlns.com/foaf/0.1/knows"
+  },
+  "@id": "http://matteocollina.com",
+  "name": "Matteo",
+  "knows": [{
+    "name": "Daniele"
+  }, {
+    "name": "Lucio"
+  }]
 };
 
 db.jsonld.put(nested, function(err, obj) {
   // obj will be 
   // {
-  //     "@context": {
-  //         "name": "http://xmlns.com/foaf/0.1/name"
-  //       , "knows": "http://xmlns.com/foaf/0.1/knows"
-  //     }
-  //   , "@id": "http://matteocollina.com"
-  //   , "name": "matteo"
-  //   , "knows": [{
-  //         "@id": "_:7053c150-5fea-11e3-a62e-adadc4e3df79"
-  //       , "name": "daniele"
-  //     }, {
-  //         "@id": "_:9d2bb59d-3baf-42ff-ba5d-9f8eab34ada5"
-  //         "name": "lucio"
-  //     }]
+  //   "@context": {
+  //     "name": "http://xmlns.com/foaf/0.1/name",
+  //     "knows": "http://xmlns.com/foaf/0.1/knows"
+  //   },
+  //   "@id": "http://matteocollina.com",
+  //   "name": "Matteo",
+  //   "knows": [{
+  //     "@id": "_:7053c150-5fea-11e3-a62e-adadc4e3df79",
+  //     "name": "Daniele"
+  //   }, {
+  //     "@id": "_:9d2bb59d-3baf-42ff-ba5d-9f8eab34ada5",
+  //     "name": "Lucio"
+  //   }]
   // }
 });
 ```
@@ -151,7 +157,7 @@ db.jsonld.put(nested, function(err, obj) {
 In order to delete an object, you can just pass it's `'@id'` to the
 `'@del'` method:
 ```javascript
-db.jsonld.del(manu["@id"], function(err) {
+db.jsonld.del(manu['@id'], function(err) {
   // do something after it is deleted!
 });
 ```
@@ -163,60 +169,58 @@ that problem is already solved by __LevelGraph__ itself. This example
 search finds friends living near Paris:
 ```javascript
 var manu = {
-    "@context": {
-        "@vocab": "http://xmlns.com/foaf/0.1/"
-      , "homepage": { "@type": "@id" }
-      , "knows": { "@type": "@id" }
-      , "based_near": { "@type": "@id" }
-    }
-  , "@id": "http://manu.sporny.org#person"
-  , "name": "Manu Sporny"
-  , "homepage": "http://manu.sporny.org/"
-  , "knows": [
-    {
-      "@id": "https://my-profile.eu/people/deiu/card#me",
-      "name": "Andrei Vlad Sambra",
-      "based_near": "http://dbpedia.org/resource/Paris"
-    }, {
-      "@id": "http://melvincarvalho.com/#me",
-      "name": "Melvin Carvalho",
-      "based_near": "http://dbpedia.org/resource/Honolulu"
-    }, {
-      "@id": "http://bblfish.net/people/henry/card#me",
-      "name": "Henry Story",
-      "based_near": "http://dbpedia.org/resource/Paris"
-    }, {
-      "@id": "http://presbrey.mit.edu/foaf#presbrey",
-      "name": "Joe Presbrey",
-      "based_near": "http://dbpedia.org/resource/Cambridge"
-    }
-  ]
-}
+  "@context": {
+    "@vocab": "http://xmlns.com/foaf/0.1/",
+    "homepage": { "@type": "@id" },
+    "knows": { "@type": "@id" },
+    "based_near": { "@type": "@id" }
+  },
+  "@id": "http://manu.sporny.org#person",
+  "name": "Manu Sporny",
+  "homepage": "http://manu.sporny.org/",
+  "knows": [{
+    "@id": "https://my-profile.eu/people/deiu/card#me",
+    "name": "Andrei Vlad Sambra",
+    "based_near": "http://dbpedia.org/resource/Paris"
+  }, {
+    "@id": "http://melvincarvalho.com/#me",
+    "name": "Melvin Carvalho",
+    "based_near": "http://dbpedia.org/resource/Honolulu"
+  }, {
+    "@id": "http://bblfish.net/people/henry/card#me",
+    "name": "Henry Story",
+    "based_near": "http://dbpedia.org/resource/Paris"
+  }, {
+    "@id": "http://presbrey.mit.edu/foaf#presbrey",
+    "name": "Joe Presbrey",
+    "based_near": "http://dbpedia.org/resource/Cambridge"
+  }]
+};
 
-var paris = "http://dbpedia.org/resource/Paris";
+var paris = 'http://dbpedia.org/resource/Paris';
 
 db.jsonld.put(manu, function(){
-  db.join([{
-    subject: manu["@id"],
-    predicate: "http://xmlns.com/foaf/0.1/knows",
-    object: db.v("webid")
+  db.search([{
+    subject: manu['@id'],
+    predicate: 'http://xmlns.com/foaf/0.1/knows',
+    object: db.v('webid')
   }, {
-    subject: db.v("webid"),
-    predicate: "http://xmlns.com/foaf/0.1/based_near",
+    subject: db.v('webid'),
+    predicate: 'http://xmlns.com/foaf/0.1/based_near',
     object: paris
   }, {
-    subject: db.v("webid"),
-    predicate: "http://xmlns.com/foaf/0.1/name",
-    object: db.v("name")
+    subject: db.v('webid'),
+    predicate: 'http://xmlns.com/foaf/0.1/name',
+    object: db.v('name')
   }
   ], function(err, solution) {
     // solution contains
     // [{
-    //   webid: "http://bblfish.net/people/henry/card#me",
-    //   name: "Henry Story"
+    //   webid: 'http://bblfish.net/people/henry/card#me',
+    //   name: '"Henry Story"'
     // }, {
-    //   webid: "https://my-profile.eu/people/deiu/card#me",
-    //   name: "Andrei Vlad Sambra"
+    //   webid: 'https://my-profile.eu/people/deiu/card#me',
+    //   name: '"Andrei Vlad Sambra"'
     // }]
   });
 });

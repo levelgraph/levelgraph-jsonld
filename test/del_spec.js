@@ -1,26 +1,26 @@
-var level  = require("level-test")()
-  , graph  = require("levelgraph")
-  , jsonld = require("../");
+var level  = require('level-test')(),
+    graph  = require('levelgraph'),
+    jsonld = require('../');
 
-describe("jsonld.del", function() {
+describe('jsonld.del', function() {
 
   var db, manu, tesla;
 
   beforeEach(function() {
-    db = jsonld(graph(level()), { base: "http://levelgraph.io/" });
-    manu = fixture("manu.json");
-    tesla = fixture("tesla.json");
+    db = jsonld(graph(level()), { base: 'http://levelgraph.io/' });
+    manu = fixture('manu.json');
+    tesla = fixture('tesla.json');
   }); 
 
   afterEach(function(done) {
     db.close(done);
   });
 
-  it("should accept a done callback", function(done) {
+  it('should accept a done callback', function(done) {
     db.jsonld.put(manu, done);
   });
 
-  it("should del a basic object", function(done) {
+  it('should del a basic object', function(done) {
     db.jsonld.put(manu, function() {
       db.jsonld.del(manu, function() {
         db.get({}, function(err, triples) {
@@ -32,7 +32,7 @@ describe("jsonld.del", function() {
     });
   });
 
-  it("should del a complex object", function(done) {
+  it('should del a complex object', function(done) {
     db.jsonld.put(tesla, function() {
       db.jsonld.del(tesla, function() {
         db.get({}, function(err, triples) {
@@ -44,9 +44,9 @@ describe("jsonld.del", function() {
     });
   });
 
-  it("should del an iri", function(done) {
+  it('should del an iri', function(done) {
     db.jsonld.put(manu, function() {
-      db.jsonld.del(manu["@id"], function() {
+      db.jsonld.del(manu['@id'], function() {
         db.get({}, function(err, triples) {
           // getting the full db
           expect(triples).to.be.empty;
@@ -56,7 +56,7 @@ describe("jsonld.del", function() {
     });
   });
 
-  it("should del a single object", function(done) {
+  it('should del a single object', function(done) {
     db.jsonld.put(manu, function() {
       db.jsonld.put(tesla, function() {
         db.jsonld.del(tesla, function() {
