@@ -1,14 +1,12 @@
-var level  = require('level-test')(),
-    graph  = require('levelgraph'),
-    jsonld = require('../');
+var helper = require('./helper');
 
 describe('db.search', function() {
 
   var db, gang, manu;
 
   beforeEach(function() {
-    db = jsonld(graph(level()));
-    manu = fixture('manu.json');
+    db = helper.getDB();
+    manu = helper.getFixture('manu.json');
     manu['@context']['knows'] = { "@type": "@id" };
     manu['@context']['based_near'] = { "@type": "@id" };
     manu['knows'] = [

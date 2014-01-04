@@ -1,15 +1,13 @@
-var level  = require('level-test')(),
-    graph  = require('levelgraph'),
-    jsonld = require('../'),
+var helper = require('./helper'),
     _ = require('lodash');
 
 describe('IRI', function() {
 
-  var db,
-      manu = fixture('manu.json');
+  var db, manu;
 
   beforeEach(function() {
-    db = jsonld(graph(level()), { base: 'http://levelgraph.io/get' } );
+    db = helper.getDB({ jsonld: { base: 'http://levelgraph.io/get' } });
+    manu = helper.getFixture('manu.json');
   });
 
   afterEach(function(done) {

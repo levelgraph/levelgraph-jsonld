@@ -1,15 +1,13 @@
 // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
-var level  = require('level-test')(),
-    graph  = require('levelgraph'),
-    jsonld = require('../');
+var helper = require('./helper');
 
 describe('jsonld.put data type', function() {
 
   var db, bbb;
 
   beforeEach(function() {
-    db = jsonld(graph(level()));
-    bbb = fixture('bigbuckbunny.json');
+    db = helper.getDB();
+    bbb = helper.getFixture('bigbuckbunny.json');
   });
 
   describe('coerce', function() {
@@ -116,8 +114,8 @@ describe('jsonld.get data type', function() {
   var db, bbb, triple;
 
   beforeEach(function() {
-    db = jsonld(graph(level()));
-    bbb = fixture('bigbuckbunny.json');
+    db = helper.getDB();
+    bbb = helper.getFixture('bigbuckbunny.json');
     triple = {
           subject: bbb['@id'],
           predicate: null,
