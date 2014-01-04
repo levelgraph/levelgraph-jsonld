@@ -1,15 +1,13 @@
-var level  = require('level-test')(),
-    graph  = require('levelgraph'),
-    jsonld = require('../');
+var helper = require('./helper');
 
 describe('jsonld.del', function() {
 
   var db, manu, tesla;
 
   beforeEach(function() {
-    db = jsonld(graph(level()), { base: 'http://levelgraph.io/' });
-    manu = fixture('manu.json');
-    tesla = fixture('tesla.json');
+    db = helper.getDB({ jsonld: { base: 'http://levelgraph.io/' } });
+    manu = helper.getFixture('manu.json');
+    tesla = helper.getFixture('tesla.json');
   }); 
 
   afterEach(function(done) {

@@ -1,14 +1,12 @@
-var level  = require('level-test')(),
-    graph  = require('levelgraph'),
-    jsonld = require('../');
+var helper = require('./helper');
 
 describe('jsonld.put language tags', function() {
 
   var db, bbb;
 
   beforeEach(function() {
-    db = jsonld(graph(level()));
-    bbb = fixture('bigbuckbunny.json');
+    db = helper.getDB();
+    bbb = helper.getFixture('bigbuckbunny.json');
   });
 
   it('default set in context', function(done) {
@@ -67,8 +65,8 @@ describe('jsonld.get language tags', function() {
   var db, bbb, triple;
 
   beforeEach(function() {
-    db = jsonld(graph(level()));
-    bbb = fixture('bigbuckbunny.json');
+    db = helper.getDB();
+    bbb = helper.getFixture('bigbuckbunny.json');
   });
 
   it('recognizes', function(done) {

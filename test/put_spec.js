@@ -1,15 +1,13 @@
-var level  = require('level-test')(),
-    graph  = require('levelgraph'),
-    jsonld = require('../');
+var helper = require('./helper');
 
 describe('jsonld.put', function() {
 
   var db, manu;
 
   beforeEach(function() {
-    db = jsonld(graph(level()));
-    manu = fixture('manu.json');
-  }); 
+    db = helper.getDB();
+    manu = helper.getFixture('manu.json');
+  });
 
   afterEach(function(done) {
     db.close(done);
@@ -94,7 +92,7 @@ describe('jsonld.put', function() {
   });
 
   it('should convert @type into http://www.w3.org/1999/02/22-rdf-syntax-ns#type', function(done) {
-    db.jsonld.put(fixture('tesla.json'), function() {
+    db.jsonld.put(helper.getFixture('tesla.json'), function() {
       db.get({
         subject: 'http://example.org/cars/for-sale#tesla',
         predicate: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
@@ -157,7 +155,7 @@ describe('jsonld.put', function() {
   });
 
   it('should delete a nested object', function(done) {
-    db.jsonld.put(fixture('tesla.json'), function(err, instance) {
+    db.jsonld.put(helper.getFixture('tesla.json'), function(err, instance) {
       delete instance['gr:hasPriceSpecification'];
 
       db.jsonld.put(instance, function() {
@@ -178,8 +176,8 @@ describe('jsonld.put with default base', function() {
   var db, manu;
 
   beforeEach(function() {
-    db = jsonld(graph(level()), { base: 'http://levelgraph.io/ahah/' });
-    manu = fixture('manu.json');
+    db = helper.getDB({ jsonld: { base: 'http://levelgraph.io/ahah/' } });
+    manu = helper.getFixture('manu.json');
   }); 
 
   afterEach(function(done) {
@@ -200,7 +198,7 @@ describe('jsonld.put with default base', function() {
   });
 
   it('should correctly generate blank nodes as subjects', function(done) {
-    var tesla = fixture('tesla.json');
+    var tesla = helper.getFixture('tesla.json');
 
     db.jsonld.put(tesla, function() {
       db.search([{
@@ -219,7 +217,7 @@ describe('jsonld.put with default base', function() {
   });
 
   it('should not store undefined objects', function(done) {
-    var tesla = fixture('tesla.json');
+    var tesla = helper.getFixture('tesla.json');
 
     db.jsonld.put(tesla, function() {
       db.get({}, function(err, triples) {
@@ -232,7 +230,7 @@ describe('jsonld.put with default base', function() {
   });
 
   it('should support nested objects', function(done) {
-    var nested = fixture('nested.json');
+    var nested = helper.getFixture('nested.json');
 
     db.jsonld.put(nested, function() {
       db.get({}, function(err, triples) {

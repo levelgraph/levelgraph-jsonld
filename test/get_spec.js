@@ -1,14 +1,12 @@
-var level  = require('level-test')(),
-    graph  = require('levelgraph'),
-    jsonld = require('../'),
-    fs     = require('fs');
+var helper = require('./helper');
 
 describe('jsonld.get', function() {
 
-  var db, manu = fixture('manu.json');
+  var db, manu;
 
   beforeEach(function() {
-    db = jsonld(graph(level()), { base: 'http://levelgraph.io/get' } );
+    manu = helper.getFixture('manu.json');
+    db = helper.getDB({ jsonld: { base: 'http://levelgraph.io/get' } });
   });
 
   afterEach(function(done) {
@@ -39,7 +37,7 @@ describe('jsonld.get', function() {
     var tesla;
 
     beforeEach(function(done) {
-      tesla = fixture('tesla.json')
+      tesla = helper.getFixture('tesla.json');
       db.jsonld.put(tesla, done);
     });
 
@@ -54,7 +52,7 @@ describe('jsonld.get', function() {
   });
 
   it('should support nested objects', function(done) {
-    var nested = fixture('nested.json');
+    var nested = helper.getFixture('nested.json');
 
     db.jsonld.put(nested, function(err, obj) {
       db.jsonld.get(obj['@id'], { '@context': obj['@context'] }, function(err, result) {
