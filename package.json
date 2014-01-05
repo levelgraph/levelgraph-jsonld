@@ -34,7 +34,7 @@
     "jsonld": "~0.1.26",
     "uuid": "~1.4.1",
     "async": "~0.2.9",
-    "n3": "~0.2.2"
+    "n3": "~0.2.3"
   },
   "peerDependencies": {
     "levelgraph": "~0.8.1"

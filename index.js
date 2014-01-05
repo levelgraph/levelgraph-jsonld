@@ -46,6 +46,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
             node.value = blanks[node.value];
           }
           // preserve object data types using double quotation for literals
+          // and don't keep data type for strings without defined language
           if(key === 'object' && triple.object.datatype){
             if(triple.object.datatype.match(XSDTYPE)){
               if(triple.object.datatype === 'http://www.w3.org/2001/XMLSchema#string'){
@@ -54,7 +55,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
                 node.value = '"' + triple.object.value + '"^^<' + triple.object.datatype + '>';
               }
             } else if(triple.object.datatype.match(RDFLANGSTRING)){
-                node.value = '"' + triple.object.value + '"@' + triple.object.language;
+              node.value = '"' + triple.object.value + '"@' + triple.object.language;
             }
           }
           acc[key] = node.value;
@@ -126,39 +127,42 @@ function levelgraphJSONLD(db, jsonldOpts) {
   };
 
   // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
-  var coerceLiteral = function(literal) {
+  var getCoercedObject = function(object) {
     var TYPES = {
       PLAIN: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral',
-      BOOLEAN: 'http://www.w3.org/2001/XMLSchema#boolean',
-      INTEGER: 'http://www.w3.org/2001/XMLSchema#integer',
-      DOUBLE: 'http://www.w3.org/2001/XMLSchema#double',
-      STRING: 'http://www.w3.org/2001/XMLSchema#string',
+      BOOLEAN: XSDTYPE + 'boolean',
+      INTEGER: XSDTYPE + 'integer',
+      DOUBLE: XSDTYPE + 'double',
+      STRING: XSDTYPE + 'string',
     };
-    var value = N3Util.getLiteralValue(literal);
-    var type = N3Util.getLiteralType(literal);
+    var value = N3Util.getLiteralValue(object);
+    var type = N3Util.getLiteralType(object);
+    var coerced = {};
     switch (type) {
       case TYPES.STRING:
       case TYPES.PLAIN:
-        literal = value;
+      case RDFLANGSTRING:
+        coerced['@value'] = value;
         break;
       case TYPES.INTEGER:
-        literal = parseInt(value, 10);
+        coerced['@value'] = parseInt(value, 10);
         break;
       case TYPES.DOUBLE:
-        literal = parseFloat(value);
+        coerced['@value'] = parseFloat(value);
         break;
       case TYPES.BOOLEAN:
         if (value === 'true' || value === '1') {
-          literal = true;
-        }
-        if (value === 'false' || value === '0') {
-          literal = false;
+          coerced['@value'] = true;
+        } else if (value === 'false' || value === '0') {
+          coerced['@value'] = false;
+        } else {
+          throw new Error('value not boolean!');
         }
         break;
       default:
-        // FIXME deal with other types
+        coerced = { '@value': value, '@type': type };
     }
-    return literal;
+    return coerced;
   };
 
   var fetchExpandedTriples = function(iri, memo, callback) {
@@ -191,7 +195,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
           if (N3Util.isUri(triple.object)) {
             object['@id'] = triple.object;
           } else if (N3Util.isLiteral(triple.object)) {
-            object['@value'] = coerceLiteral(triple.object);
+            object = getCoercedObject(triple.object);
             var language = N3Util.getLiteralLanguage(triple.object);
             if (language) {
               object['@language'] = language;
