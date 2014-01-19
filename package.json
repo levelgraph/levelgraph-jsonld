@@ -31,17 +31,17 @@
   "author": "Matteo Collina <hello@matteocollina.com>",
   "license": "MIT",
   "dependencies": {
-    "jsonld": "~0.1.25",
+    "jsonld": "~0.1.26",
     "uuid": "~1.4.1",
     "async": "~0.2.9",
-    "n3": "~0.2.1"
+    "n3": "~0.2.2"
   },
   "peerDependencies": {
-    "levelgraph": "~0.7.1"
+    "levelgraph": "~0.8.1"
   },
   "devDependencies": {
-    "mocha": "~1.16.2",
-    "levelgraph": "~0.7.1",
+    "mocha": "~1.17.0",
+    "levelgraph": "~0.8.1",
     "level-test": "~1.5.2",
     "chai": "~1.8.1",
     "lodash": "~2.4.1",
