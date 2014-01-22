@@ -31,7 +31,7 @@
   "author": "Matteo Collina <hello@matteocollina.com>",
   "license": "MIT",
   "dependencies": {
-    "jsonld": "~0.1.26",
+    "jsonld": "git://github.com/elf-pavlik/jsonld.js.git#browserify",
     "uuid": "~1.4.1",
     "async": "~0.2.9",
     "n3": "~0.2.3"
