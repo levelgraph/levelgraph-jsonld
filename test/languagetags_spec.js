@@ -1,3 +1,4 @@
+var expect = require('chai').expect;
 var helper = require('./helper');
 
 describe('jsonld.put language tags', function() {

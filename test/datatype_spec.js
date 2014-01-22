@@ -1,4 +1,5 @@
 // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
+var expect = require('chai').expect;
 var helper = require('./helper');
 
 describe('jsonld.put data type', function() {
