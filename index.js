@@ -21,7 +21,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
       options: jsonldOpts
   };
 
-  var doPut = function(obj, options, callback) {
+  function doPut(obj, options, callback) {
     var blanks = {};
 
     jsonld.toRDF(obj, options, function(err, triples) {
@@ -127,7 +127,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
   };
 
   // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
-  var getCoercedObject = function(object) {
+  function getCoercedObject(object) {
     var TYPES = {
       PLAIN: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral',
       BOOLEAN: XSDTYPE + 'boolean',
@@ -165,7 +165,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
     return coerced;
   };
 
-  var fetchExpandedTriples = function(iri, memo, callback) {
+  function fetchExpandedTriples(iri, memo, callback) {
     if (typeof memo === 'function') {
       callback = memo;
       memo = {};
@@ -240,4 +240,3 @@ function levelgraphJSONLD(db, jsonldOpts) {
 }
 
 module.exports = levelgraphJSONLD;
-
