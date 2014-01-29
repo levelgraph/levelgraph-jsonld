@@ -1,6 +1,11 @@
 language: node_js
 node_js:
-  - 0.10
+- 0.10
 script:
 - npm run coverage
 - npm run publish-coverage
+- test $SAUCE_USERNAME && npm run zuul || echo 'not running on saucelabs'
+env:
+  global:
+  - secure: HQYn8X9CAc9gtzHdmFErbS5yf2Ug63i/MUAV4jqI/+0v5b6m3zLbhQGSXlboQEk+uqtOebdAdGsTJpoLq1JghqcRdrUwHV+tdENJguc4fStF8q+u9+U8fw8eKiVwSbHKR66Z2uhyabI/AkZ4Lqmlsi7zNM7ESOFRuSyx5c4pUtE=
+  - secure: JZ+sZY/ZDosFLnE6zPa2QFl8GBq144Iwi+LA2PgoYsPTu3H7ksIh3yvEVnahQ0N0jYIXvKc9HlUECwI8AREp8sszgrQzKKhGUEYlv3vIIz34f+3hV6ZaBt9Tho5LHOXe0HXWmFP74nFKj7qFXGc4VJ9igAOzaqVRV2n0H3qUTaM=
