@@ -48,6 +48,8 @@
     "lodash": "~2.4.1",
     "coveralls": "~2.6.1",
     "istanbul": "~0.2.3",
-    "zuul": "~1.5.2"
+    "zuul": "~1.5.2",
+    "browserify": "~3.20.0",
+    "uglify-js": "~2.4.10"
   }
 }
