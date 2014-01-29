@@ -6,6 +6,7 @@ LevelGraph-JSONLD
 [![Build Status](https://travis-ci.org/mcollina/levelgraph-jsonld.png)](https://travis-ci.org/mcollina/levelgraph-jsonld)
 [![Coverage Status](https://coveralls.io/repos/mcollina/levelgraph-jsonld/badge.png)](https://coveralls.io/r/mcollina/levelgraph-jsonld)
 [![Dependency Status](https://david-dm.org/mcollina/levelgraph-jsonld.png?theme=shields.io)](https://david-dm.org/mcollina/levelgraph-jsonld)
+[![Sauce Labs Tests](https://saucelabs.com/browser-matrix/levelgraph-jsonld.svg)](https://saucelabs.com/u/levelgraph-jsonld)
 
 __LevelGraph-JSONLD__ is a plugin for
 [LevelGraph](http://github.com/mcollina/levelgraph) that adds the
