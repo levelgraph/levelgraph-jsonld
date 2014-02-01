@@ -1,0 +1,31 @@
+{ 
+  "@id": "http://dbpedia.org/resource/Ratatat",
+  "@type" : 
+  [ 
+    "http://dbpedia.org/class/yago/Measure100033615" ,
+    "http://dbpedia.org/ontology/Band" ,
+    "http://dbpedia.org/ontology/Agent" ,
+    "http://dbpedia.org/class/yago/Digit113741022" ,
+    "http://dbpedia.org/ontology/Organisation" ,
+    "http://dbpedia.org/class/yago/AmericanHouseMusicGroups" ,
+    "http://dbpedia.org/class/yago/Onomatopoeia107104574" ,
+    "http://dbpedia.org/class/yago/Number113582013" ,
+    "http://dbpedia.org/class/yago/Couple113743605" ,
+    "http://dbpedia.org/class/yago/Two113743269" ,
+    "http://schema.org/Organization" ,
+    "http://dbpedia.org/class/yago/DefiniteQuantity113576101" ,
+    "http://dbpedia.org/class/yago/Integer113728499" ,
+    "http://dbpedia.org/class/yago/ExpressiveStyle107066659" ,
+    "http://schema.org/MusicGroup" ,
+    "http://dbpedia.org/class/yago/Group100031264" ,
+    "http://www.w3.org/2002/07/owl#Thing" ,
+    "http://dbpedia.org/class/yago/AmericanPost-rockGroups" ,
+    "http://dbpedia.org/class/yago/Communication100033020" ,
+    "http://dbpedia.org/class/yago/ElectronicMusicGroupsFromNewYork" ,
+    "http://dbpedia.org/class/yago/ElectronicMusicDuos" ,
+    "http://dbpedia.org/class/yago/Onomatopoeias" ,
+    "http://dbpedia.org/class/yago/Abstraction100002137" ,
+    "http://dbpedia.org/class/yago/Device107068844" ,
+    "http://dbpedia.org/class/yago/RhetoricalDevice107098193" 
+  ]
+}

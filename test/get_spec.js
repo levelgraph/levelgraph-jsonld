@@ -63,4 +63,21 @@ describe('jsonld.get', function() {
       });
     });
   });
+
+  describe('with an object with an array for its ["@type"]', function() {
+    var ratatat;
+
+    beforeEach(function(done) {
+      ratatat = helper.getFixture('ratatat.json');
+      db.jsonld.put(ratatat, done);
+    });
+
+    it('should retrieve the object', function(done) {
+      db.jsonld.get(ratatat['@id'], {}, function(err, obj) {
+        expect(obj['@type']).to.have.members(ratatat['@type']);
+        expect(obj['@id']).to.eql(ratatat['@id']);
+        done();
+      });
+    });
+  });
 });
