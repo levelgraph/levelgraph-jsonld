@@ -184,10 +184,9 @@ function levelgraphJSONLD(db, jsonldOpts) {
         }
         if (triple.predicate === RDFTYPE) {
           if (acc[triple.subject]['@type']) {
-            acc[triple.subject]['@type'] = [acc[triple.subject]['@type']];
             acc[triple.subject]['@type'].push(triple.object);
           } else {
-            acc[triple.subject]['@type'] = triple.object;
+            acc[triple.subject]['@type'] = [triple.object];
           }
           cb(null, acc);
         } else if (!N3Util.isBlank(triple.object)) {
