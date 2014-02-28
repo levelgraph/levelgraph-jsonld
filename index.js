@@ -66,7 +66,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
       });
       stream.end();
     });
-  };
+  }
 
   graphdb.jsonld.put = function(obj, options, callback) {
     if (typeof obj === 'string') {
@@ -141,8 +141,11 @@ function levelgraphJSONLD(db, jsonldOpts) {
     switch (type) {
       case TYPES.STRING:
       case TYPES.PLAIN:
+        coerced['@value'] = value;
+        break;
       case RDFLANGSTRING:
         coerced['@value'] = value;
+        coerced['@language'] = N3Util.getLiteralLanguage(object);
         break;
       case TYPES.INTEGER:
         coerced['@value'] = parseInt(value, 10);
@@ -163,7 +166,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
         coerced = { '@value': value, '@type': type };
     }
     return coerced;
-  };
+  }
 
   function fetchExpandedTriples(iri, memo, callback) {
     if (typeof memo === 'function') {
@@ -195,12 +198,12 @@ function levelgraphJSONLD(db, jsonldOpts) {
             object['@id'] = triple.object;
           } else if (N3Util.isLiteral(triple.object)) {
             object = getCoercedObject(triple.object);
-            var language = N3Util.getLiteralLanguage(triple.object);
-            if (language) {
-              object['@language'] = language;
-            }
           }
-          acc[triple.subject][triple.predicate] = object;
+          if(acc[triple.subject][triple.predicate]){
+            acc[triple.subject][triple.predicate].push(object);
+          } else {
+            acc[triple.subject][triple.predicate] = [object];
+          }
           cb(null, acc);
         } else {
           fetchExpandedTriples(triple.object, function(err, expanded) {
@@ -217,7 +220,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
         }
       }, callback);
     });
-  };
+  }
 
   graphdb.jsonld.get = function(iri, context, options, callback) {
 

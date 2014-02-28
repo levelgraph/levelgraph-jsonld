@@ -64,6 +64,32 @@ describe('jsonld.get', function() {
     });
   });
 
+  it('with an object with multiple objects for same predicate' ,function(done){
+    var bbb = helper.getFixture('bigbuckbunny.json');
+
+    var act1 = {
+          subject: bbb['@id'],
+          predicate: 'http://schema.org/actor',
+          object: 'http://example.net/act1'
+    };
+
+    var act2 = {
+          subject: bbb['@id'],
+          predicate: 'http://schema.org/actor',
+          object: 'http://example.net/act2'
+    };
+
+    db.jsonld.put(bbb, function() {
+      db.put([act1, act2], function() {
+        db.jsonld.get(bbb['@id'], bbb['@context'], function(err, doc) {
+          expect(doc['actor']).to.be.an('array');
+          expect(doc['actor']).to.have.length(2);
+          done();
+        });
+      });
+    });
+  });
+
   describe('with an object with an array for its ["@type"]', function() {
     var ratatat;
 
