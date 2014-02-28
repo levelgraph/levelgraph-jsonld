@@ -37,7 +37,7 @@
     "n3": "~0.2.3"
   },
   "peerDependencies": {
-    "levelgraph": "~0.8.1"
+    "levelgraph": ">= 0.8 < 0.9"
   },
   "devDependencies": {
     "mocha": "~1.17.0",
