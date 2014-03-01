@@ -70,7 +70,8 @@ describe('jsonld.get language tags', function() {
   });
 
   it('recognizes', function(done) {
-    triple = {
+    delete bbb.name;
+    var triple = {
           subject: bbb['@id'],
           predicate: 'http://schema.org/name',
           object: '"Big Buck Bunny"@en'
@@ -86,4 +87,30 @@ describe('jsonld.get language tags', function() {
       });
     });
   });
+
+  it('supports multiple language objects', function(done) {
+    var en = {
+          subject: bbb['@id'],
+          predicate: 'http://schema.org/description',
+          object: '"Big Buck Bunny"@en'
+    };
+
+    var it = {
+          subject: bbb['@id'],
+          predicate: 'http://schema.org/description',
+          object: '"Grande Coniglio Coniglietto"@it'
+    };
+    bbb['@context'].description = { '@container': '@language' };
+
+    db.jsonld.put(bbb, function() {
+      db.put([en, it], function() {
+        db.jsonld.get(bbb['@id'], bbb['@context'], function(err, doc) {
+          expect(doc.description.en).to.equal('Big Buck Bunny');
+          expect(doc.description.it).to.equal('Grande Coniglio Coniglietto');
+          done();
+        });
+      });
+    });
+  });
+
 });
