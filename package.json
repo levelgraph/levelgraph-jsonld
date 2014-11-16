@@ -41,13 +41,13 @@
     "levelgraph": ">= 0.10 < 0.11"
   },
   "devDependencies": {
-    "mocha": "~1.17.0",
+    "mocha": "~2.0.1",
     "levelgraph": "~0.10",
-    "level-test": "~1.5.2",
-    "chai": "~1.8.1",
+    "level-test": "~1.6.6",
+    "chai": "~1.10.0",
     "lodash": "~2.4.1",
-    "coveralls": "~2.6.1",
-    "istanbul": "~0.2.3",
+    "coveralls": "~2.11.2",
+    "istanbul": "~0.3.2",
     "zuul": "~1.5.2",
     "browserify": "~3.20.0",
     "uglify-js": "~2.4.10"
