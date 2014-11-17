@@ -52,7 +52,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
               if(triple.object.datatype === 'http://www.w3.org/2001/XMLSchema#string'){
                 node.value = '"' + triple.object.value + '"';
               } else {
-                node.value = '"' + triple.object.value + '"^^<' + triple.object.datatype + '>';
+                node.value = '"' + triple.object.value + '"^^' + triple.object.datatype + '';
               }
             } else if(triple.object.datatype.match(RDFLANGSTRING)){
               node.value = '"' + triple.object.value + '"@' + triple.object.language;
@@ -137,10 +137,6 @@ function levelgraphJSONLD(db, jsonldOpts) {
     };
     var value = N3Util.getLiteralValue(object);
     var type = N3Util.getLiteralType(object);
-    // get type URI without <>
-    if(type !== TYPES.STRING && type !== RDFLANGSTRING) {
-      type = type.slice(1,-1);
-    }
     var coerced = {};
     switch (type) {
       case TYPES.STRING:
