@@ -137,6 +137,10 @@ function levelgraphJSONLD(db, jsonldOpts) {
     };
     var value = N3Util.getLiteralValue(object);
     var type = N3Util.getLiteralType(object);
+    // get type URI without <>
+    if(type !== TYPES.STRING && type !== RDFLANGSTRING) {
+      type = type.slice(1,-1);
+    }
     var coerced = {};
     switch (type) {
       case TYPES.STRING:
