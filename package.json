@@ -49,7 +49,7 @@
     "coveralls": "~2.11.2",
     "istanbul": "~0.3.2",
     "zuul": "~1.5.2",
-    "browserify": "~3.20.0",
-    "uglify-js": "~2.4.10"
+    "browserify": "~6.3.2",
+    "uglify-js": "~2.4.15"
   }
 }
