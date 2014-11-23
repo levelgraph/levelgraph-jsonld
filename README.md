@@ -72,7 +72,7 @@ Please keep in mind that LevelGraph-JSONLD __doesn't store the original
 JSON-LD document but decomposes it into triples__! It stores literals
 double quoted with datatype if other then string. If you use plain
 LevelGraph methods, instead trying to match number `42` you need to try
-matching `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`
+matching `"42"^^http://www.w3.org/2001/XMLSchema#integer`
 
  Storing triples from JSON-LD document is extremely easy:
 ```javascript
