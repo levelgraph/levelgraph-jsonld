@@ -255,6 +255,10 @@ db.jsonld.put(manu, function(){
   });
 });
 ```
+## Changes (including migration info if breaking)
+
+[CHANGELOG.md](https://github.com/mcollina/levelgraph-jsonld/blob/master/CHANGELOG.md)
+
 
 ## Contributing to LevelGraph-JSONLD
 
