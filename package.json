@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "./node_modules/.bin/mocha --recursive test",
-    "zuul": "zuul -- test",
+    "zuul": "zuul test/*spec.js",
     "coverage": "rm -rf coverage; istanbul cover _mocha -- --recursive --reporter spec --bail",
     "publish-coverage": "cat coverage/lcov.info | coveralls"
   },
