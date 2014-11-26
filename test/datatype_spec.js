@@ -1,4 +1,5 @@
 // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
+var expect = require('chai').expect;
 var helper = require('./helper');
 
 describe('jsonld.put data type', function() {
@@ -18,7 +19,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/isFamilyFriendly'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"true"^^<http://www.w3.org/2001/XMLSchema#boolean>');
+          expect(triples[0].object).to.equal('"true"^^http://www.w3.org/2001/XMLSchema#boolean');
           done();
         });
       });
@@ -30,7 +31,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/isFamilyFriendly'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"false"^^<http://www.w3.org/2001/XMLSchema#boolean>');
+          expect(triples[0].object).to.equal('"false"^^http://www.w3.org/2001/XMLSchema#boolean');
           done();
         });
       });
@@ -42,7 +43,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/version'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"2"^^<http://www.w3.org/2001/XMLSchema#integer>');
+          expect(triples[0].object).to.equal('"2"^^http://www.w3.org/2001/XMLSchema#integer');
           done();
         });
       });
@@ -54,7 +55,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/version'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"-2"^^<http://www.w3.org/2001/XMLSchema#integer>');
+          expect(triples[0].object).to.equal('"-2"^^http://www.w3.org/2001/XMLSchema#integer');
           done();
         });
       });
@@ -66,7 +67,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/version'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"0"^^<http://www.w3.org/2001/XMLSchema#integer>');
+          expect(triples[0].object).to.equal('"0"^^http://www.w3.org/2001/XMLSchema#integer');
           done();
         });
       });
@@ -78,7 +79,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/version'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"1.2345E1"^^<http://www.w3.org/2001/XMLSchema#double>');
+          expect(triples[0].object).to.equal('"1.2345E1"^^http://www.w3.org/2001/XMLSchema#double');
           done();
         });
       });
@@ -90,7 +91,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/version'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"-1.2345E1"^^<http://www.w3.org/2001/XMLSchema#double>');
+          expect(triples[0].object).to.equal('"-1.2345E1"^^http://www.w3.org/2001/XMLSchema#double');
           done();
         });
       });
@@ -122,7 +123,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/startTime'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"2014-01-28T12:27:54"^^<http://www.w3.org/2001/XMLSchema#dateTime>');
+          expect(triples[0].object).to.equal('"2014-01-28T12:27:54"^^http://www.w3.org/2001/XMLSchema#dateTime');
           done();
         });
 
@@ -145,7 +146,7 @@ describe('jsonld.put data type', function() {
         db.get({
           predicate: 'http://schema.org/startTime'
         }, function(err, triples) {
-          expect(triples[0].object).to.equal('"2014-01-28T12:27:54"^^<http://www.w3.org/2001/XMLSchema#dateTime>');
+          expect(triples[0].object).to.equal('"2014-01-28T12:27:54"^^http://www.w3.org/2001/XMLSchema#dateTime');
           done();
         });
 
@@ -171,7 +172,7 @@ describe('jsonld.get data type', function() {
 
     it('preserves boolean true', function(done) {
       triple.predicate = 'http://schema.org/isFamilyFriendly';
-      triple.object = '"true"^^<http://www.w3.org/2001/XMLSchema#boolean>';
+      triple.object = '"true"^^http://www.w3.org/2001/XMLSchema#boolean';
 
       db.jsonld.put(bbb, function() {
         db.put(triple, function() {
@@ -185,7 +186,7 @@ describe('jsonld.get data type', function() {
 
     it('preserves boolean false', function(done) {
       triple.predicate = 'http://schema.org/isFamilyFriendly';
-      triple.object = '"false"^^<http://www.w3.org/2001/XMLSchema#boolean>';
+      triple.object = '"false"^^http://www.w3.org/2001/XMLSchema#boolean';
 
       db.jsonld.put(bbb, function() {
         db.put(triple, function() {
@@ -199,7 +200,7 @@ describe('jsonld.get data type', function() {
 
     it('preserves integer positive', function(done) {
       triple.predicate = 'http://schema.org/version';
-      triple.object = '"2"^^<http://www.w3.org/2001/XMLSchema#integer>';
+      triple.object = '"2"^^http://www.w3.org/2001/XMLSchema#integer';
 
       db.jsonld.put(bbb, function() {
         db.put(triple, function() {
@@ -213,7 +214,7 @@ describe('jsonld.get data type', function() {
 
     it('preserves integer negative', function(done) {
       triple.predicate = 'http://schema.org/version';
-      triple.object = '"-2"^^<http://www.w3.org/2001/XMLSchema#integer>';
+      triple.object = '"-2"^^http://www.w3.org/2001/XMLSchema#integer';
 
       db.jsonld.put(bbb, function() {
         db.put(triple, function() {
@@ -227,7 +228,7 @@ describe('jsonld.get data type', function() {
 
     it('preserves integer zero', function(done) {
       triple.predicate = 'http://schema.org/version';
-      triple.object = '"0"^^<http://www.w3.org/2001/XMLSchema#integer>';
+      triple.object = '"0"^^http://www.w3.org/2001/XMLSchema#integer';
 
       db.jsonld.put(bbb, function() {
         db.put(triple, function() {
@@ -241,7 +242,7 @@ describe('jsonld.get data type', function() {
 
     it('preserves double positive', function(done) {
       triple.predicate = 'http://schema.org/version';
-      triple.object = '"1.2345E1"^^<http://www.w3.org/2001/XMLSchema#double>';
+      triple.object = '"1.2345E1"^^http://www.w3.org/2001/XMLSchema#double';
 
       db.jsonld.put(bbb, function() {
         db.put(triple, function() {
@@ -255,7 +256,7 @@ describe('jsonld.get data type', function() {
 
     it('preserves double negative', function(done) {
       triple.predicate = 'http://schema.org/version';
-      triple.object = '"-1.2345E1"^^<http://www.w3.org/2001/XMLSchema#double>';
+      triple.object = '"-1.2345E1"^^http://www.w3.org/2001/XMLSchema#double';
 
       db.jsonld.put(bbb, function() {
         db.put(triple, function() {
@@ -269,7 +270,7 @@ describe('jsonld.get data type', function() {
 
     it('does not preserve string', function(done) {
       triple.predicate = 'http://schema.org/contentRating';
-      triple.object = '"MPAA PG-13"^^<http://www.w3.org/2001/XMLSchema#string>';
+      triple.object = '"MPAA PG-13"^^http://www.w3.org/2001/XMLSchema#string';
 
       db.jsonld.put(bbb, function() {
         db.put(triple, function() {
@@ -292,7 +293,7 @@ describe('jsonld.get data type', function() {
       var triple = {
         subject: example['@id'],
         predicate: 'http://schema.org/startTime',
-        object: '"2014-01-28T12:27:54"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
+        object: '"2014-01-28T12:27:54"^^http://www.w3.org/2001/XMLSchema#dateTime'
       };
       db.jsonld.put(example, function() {
         db.put(triple, function() {
@@ -317,7 +318,7 @@ describe('jsonld.get data type', function() {
       var triple = {
         subject: example['@id'],
         predicate: 'http://schema.org/startTime',
-        object: '"2014-01-28T12:27:54"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
+        object: '"2014-01-28T12:27:54"^^http://www.w3.org/2001/XMLSchema#dateTime'
       };
       db.jsonld.put(example, function() {
         db.put(triple, function() {

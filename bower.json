@@ -1,0 +1,8 @@
+{
+  "name": "levelgraph-jsonld",
+  "version": "0.4.0",
+  "main": "build/levelgraph-jsonld.js",
+  "dependencies": {
+    "levelgraph": "~0.10.1"
+  }
+}

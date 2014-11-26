@@ -6,6 +6,7 @@ LevelGraph-JSONLD
 [![Build Status](https://travis-ci.org/mcollina/levelgraph-jsonld.png)](https://travis-ci.org/mcollina/levelgraph-jsonld)
 [![Coverage Status](https://coveralls.io/repos/mcollina/levelgraph-jsonld/badge.png)](https://coveralls.io/r/mcollina/levelgraph-jsonld)
 [![Dependency Status](https://david-dm.org/mcollina/levelgraph-jsonld.png?theme=shields.io)](https://david-dm.org/mcollina/levelgraph-jsonld)
+[![Sauce Labs Tests](https://saucelabs.com/browser-matrix/levelgraph-jsonld.svg)](https://saucelabs.com/u/levelgraph-jsonld)
 
 __LevelGraph-JSONLD__ is a plugin for
 [LevelGraph](http://github.com/mcollina/levelgraph) that adds the
@@ -13,27 +14,56 @@ ability to store, retrieve and delete JSON-LD objects.
 In fact, it is a full-bown Object-Document-Mapper (ODM) for
 __LevelGraph__.
 
-## Install on Node.js
+## Install
 
+### Node.js
+
+Adding support for JSON-LD to LevelGraph is easy:
 ```shell
 $ npm install levelgraph levelgraph-jsonld --save
+```
+Then in your code:
+```javascript
+var levelgraph = require('levelgraph'),
+    levelgraphJSONLD = require('levelgraph-jsonld'),
+    db = levelgraphJSONLD(levelgraph('yourdb'));
 ```
 
 At the moment it requires node v0.10.x, but the port to node v0.8.x
 should be straighforward.
 If you need it, just open a pull request.
 
-## Install in the Browser
+## Browser
 
-WORK IN PROGRESS! [#3](http://github.com/mcollina/levelgraph-jsonld/issues/3)
+If you use [browserify](http://browserify.org/) you can use this package
+in a browser just as in node.js. Please also take a look at [Browserify
+section in LevelGraph package](https://github.com/mcollina/levelgraph#browserify)
+
+You can also use standalone browserified version from `./build`
+directory or use [bower](http://bower.io)
+
+```shell
+$ bower install levelgraph-jsonld --save
+```
+It will also install its dependency levelgraph! Now you can simply:
+
+```html
+<script src="bower_components/levelgraph/build/levelgraph.js"></script>
+<script src="bower_components/levelgraph-jsonld/build/levelgraph-jsonld.js"></script>
+<script>
+  var db = levelgraphJSONLD(levelgraph('yourdb'));
+</script>
+```
+
+At this moment dependency [jsonld.js](https://github.com/digitalbazaar/jsonld.js) causes very **big file size**, we work on fixing it in [#3](http://github.com/mcollina/levelgraph-jsonld/issues/3)
+
 
 ## Usage
 
-Adding support for JSON-LD to LevelGraph is easy:
-```javascript
-var levelgraph = require('levelgraph'),
-    jsonld     = require('levelgraph-jsonld'),
-    db         = jsonld(levelgraph('yourdb'));
+We assume in following examples that you created database as explained
+above!
+```js
+var db = levelgraphJSONLD(levelgraph("yourdb"));
 ```
 
 ### Put
@@ -42,7 +72,7 @@ Please keep in mind that LevelGraph-JSONLD __doesn't store the original
 JSON-LD document but decomposes it into triples__! It stores literals
 double quoted with datatype if other then string. If you use plain
 LevelGraph methods, instead trying to match number `42` you need to try
-matching `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`
+matching `"42"^^http://www.w3.org/2001/XMLSchema#integer`
 
  Storing triples from JSON-LD document is extremely easy:
 ```javascript
@@ -225,6 +255,10 @@ db.jsonld.put(manu, function(){
   });
 });
 ```
+## Changes (including migration info if breaking)
+
+[CHANGELOG.md](https://github.com/mcollina/levelgraph-jsonld/blob/master/CHANGELOG.md)
+
 
 ## Contributing to LevelGraph-JSONLD
 

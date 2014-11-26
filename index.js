@@ -52,7 +52,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
               if(triple.object.datatype === 'http://www.w3.org/2001/XMLSchema#string'){
                 node.value = '"' + triple.object.value + '"';
               } else {
-                node.value = '"' + triple.object.value + '"^^<' + triple.object.datatype + '>';
+                node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
               }
             } else if(triple.object.datatype.match(RDFLANGSTRING)){
               node.value = '"' + triple.object.value + '"@' + triple.object.language;

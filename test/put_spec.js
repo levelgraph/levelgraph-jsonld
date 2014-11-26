@@ -1,3 +1,4 @@
+var expect = require('chai').expect;
 var helper = require('./helper');
 
 describe('jsonld.put', function() {
@@ -129,7 +130,7 @@ describe('jsonld.put', function() {
         db.get({
           subject: 'http://manu.sporny.org#person',
           predicate: 'http://xmlns.com/foaf/0.1/age',
-          object: '"42"^^<http://www.w3.org/2001/XMLSchema#integer>'
+          object: '"42"^^http://www.w3.org/2001/XMLSchema#integer'
         }, function(err, triples) {
           expect(triples).to.have.length(1);
           done();
