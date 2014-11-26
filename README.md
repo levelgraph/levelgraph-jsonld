@@ -55,9 +55,6 @@ It will also install its dependency levelgraph! Now you can simply:
 </script>
 ```
 
-At this moment dependency [jsonld.js](https://github.com/digitalbazaar/jsonld.js) causes very **big file size**, we work on fixing it in [#3](http://github.com/mcollina/levelgraph-jsonld/issues/3)
-
-
 ## Usage
 
 We assume in following examples that you created database as explained
@@ -255,9 +252,10 @@ db.jsonld.put(manu, function(){
   });
 });
 ```
-## Changes (including migration info if breaking)
+## Changes
 
 [CHANGELOG.md](https://github.com/mcollina/levelgraph-jsonld/blob/master/CHANGELOG.md)
+**including migration info for breaking changes**
 
 
 ## Contributing to LevelGraph-JSONLD
