@@ -207,9 +207,9 @@ function levelgraphJSONLD(db, jsonldOpts) {
           cb(null, acc);
         } else {
           fetchExpandedTriples(triple.object, function(err, expanded) {
-            if (!acc[triple.subject][triple.predicate]) {
+            if (expanded !== null && !acc[triple.subject][triple.predicate]) {
               acc[triple.subject][triple.predicate] = expanded[triple.object];
-            } else {
+            } else if (expanded !== null) {
               if (!acc[triple.subject][triple.predicate].push) {
                 acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
               }
