@@ -152,6 +152,29 @@ describe('jsonld.put data type', function() {
 
       });
     });
+
+    it('does preserve custom type when defined for given object', function(done) {
+      var example = {
+        "@context": {
+          "@vocab": "http://example.com/"
+        },
+        "@id": "http://example.com/123",
+        "password": {
+          "@value": "foo",
+          "@type": "http://example.com/#password"
+        }
+      };
+      db.jsonld.put(example, function() {
+        db.get({
+          predicate: 'http://example.com/password'
+        }, function(err, triples) {
+          expect(triples[0].object).to.equal('"foo"^^http://example.com/#password');
+          done();
+        });
+
+      });
+    });
+
   });
 });
 describe('jsonld.get data type', function() {

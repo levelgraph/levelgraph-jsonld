@@ -56,6 +56,8 @@ function levelgraphJSONLD(db, jsonldOpts) {
               }
             } else if(triple.object.datatype.match(RDFLANGSTRING)){
               node.value = '"' + triple.object.value + '"@' + triple.object.language;
+            } else {
+              node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
             }
           }
           acc[key] = node.value;
