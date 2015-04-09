@@ -170,6 +170,18 @@ describe('jsonld.put', function() {
       });
     });
   });
+
+  it('should receive error on invalid input', function(done) {
+    var invalid = {
+      "@context": { "@vocab": "http//example.com/" },
+      "test": { "@value": "foo", "bar": "oh yes" }
+    }
+    db.jsonld.put(invalid, function(err) {
+      expect(err && err.name).to.equal('jsonld.RdfError');
+      expect(err && err.message).to.equal('Could not expand input before serialization to RDF.');
+      done();
+    });
+  });
 });
 
 describe('jsonld.put with default base', function() {

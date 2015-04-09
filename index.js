@@ -25,6 +25,9 @@ function levelgraphJSONLD(db, jsonldOpts) {
     var blanks = {};
 
     jsonld.toRDF(obj, options, function(err, triples) {
+      if (err || triples.length === 0) {
+        return callback(err, null);
+      }
 
       var stream = graphdb.putStream();
 
