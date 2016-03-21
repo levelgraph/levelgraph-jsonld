@@ -20,13 +20,15 @@ __LevelGraph__.
 
 Adding support for JSON-LD to LevelGraph is easy:
 ```shell
-$ npm install levelgraph levelgraph-jsonld --save
+$ npm install level levelgraph levelgraph-jsonld --save
 ```
 Then in your code:
 ```javascript
-var levelgraph = require('levelgraph'),
+var levelup = require("levelup"),
+    yourDB = levelup("./yourdb"),
+    levelgraph = require('levelgraph'),
     levelgraphJSONLD = require('levelgraph-jsonld'),
-    db = levelgraphJSONLD(levelgraph('yourdb'));
+    db = levelgraphJSONLD(levelgraph(yourDB));
 ```
 
 At the moment it requires node v0.10.x, but the port to node v0.8.x
@@ -60,7 +62,9 @@ It will also install its dependency levelgraph! Now you can simply:
 We assume in following examples that you created database as explained
 above!
 ```js
-var db = levelgraphJSONLD(levelgraph("yourdb"));
+var levelup = require("levelup"),
+    yourDB = levelup("./yourdb"),
+    db = levelgraphJSONLD(levelgraph(yourDB));
 ```
 
 ### Put
@@ -103,10 +107,12 @@ db.jsonld.put(manu, { base: 'http://this/is/an/iri' }, function(err, obj) {
 
 `'base'` can also be specified when you create the db:
 ```javascript
-var levelgraph = require('levelgraph'),
+var levelup    = require("levelup"),
+    yourDB     = levelup("./yourdb"),
+    levelgraph = require('levelgraph'),
     jsonld     = require('levelgraph-jsonld'),
     opts       = { base: 'http://matteocollina.com/base' },
-    db         = jsonld(levelgraph('yourdb'), opts);
+    db         = jsonld(levelgraph(yourDB), opts);
 ```
 
 __LevelGraph-JSONLD__ also support nested objects, like so:
