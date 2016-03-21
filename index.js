@@ -199,7 +199,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
           cb(null, acc);
         } else if (!N3Util.isBlank(triple.object)) {
           var object = {};
-          if (N3Util.isUri(triple.object)) {
+          if (N3Util.isIRI(triple.object)) {
             object['@id'] = triple.object;
           } else if (N3Util.isLiteral(triple.object)) {
             object = getCoercedObject(triple.object);

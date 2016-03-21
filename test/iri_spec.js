@@ -37,7 +37,7 @@ describe('IRI', function() {
         done();
       });
     });
-  });
+  }); 
 
   it('keeps literal as IRI if defined as @id through @context', function(done) {
     var literal = 'http://dbpedia.org/resource/Honolulu';
