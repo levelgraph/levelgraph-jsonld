@@ -1,4 +1,4 @@
-!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.levelgraphJSONLD=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.levelgraphJSONLD = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 var jsonld = require('jsonld'),
     uuid   = require('uuid'),
     RDFTYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
@@ -26,6 +26,9 @@ function levelgraphJSONLD(db, jsonldOpts) {
     var blanks = {};
 
     jsonld.toRDF(obj, options, function(err, triples) {
+      if (err || triples.length === 0) {
+        return callback(err, null);
+      }
 
       var stream = graphdb.putStream();
 
@@ -57,6 +60,8 @@ function levelgraphJSONLD(db, jsonldOpts) {
               }
             } else if(triple.object.datatype.match(RDFLANGSTRING)){
               node.value = '"' + triple.object.value + '"@' + triple.object.language;
+            } else {
+              node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
             }
           }
           acc[key] = node.value;
@@ -195,7 +200,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
           cb(null, acc);
         } else if (!N3Util.isBlank(triple.object)) {
           var object = {};
-          if (N3Util.isUri(triple.object)) {
+          if (N3Util.isIRI(triple.object)) {
             object['@id'] = triple.object;
           } else if (N3Util.isLiteral(triple.object)) {
             object = getCoercedObject(triple.object);
@@ -208,9 +213,9 @@ function levelgraphJSONLD(db, jsonldOpts) {
           cb(null, acc);
         } else {
           fetchExpandedTriples(triple.object, function(err, expanded) {
-            if (!acc[triple.subject][triple.predicate]) {
+            if (expanded !== null && !acc[triple.subject][triple.predicate]) {
               acc[triple.subject][triple.predicate] = expanded[triple.object];
-            } else {
+            } else if (expanded !== null) {
               if (!acc[triple.subject][triple.predicate].push) {
                 acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
               }
@@ -244,8 +249,8 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
 module.exports = levelgraphJSONLD;
 
-},{"async":2,"jsonld":5,"n3/lib/N3Util":16,"uuid":18}],2:[function(require,module,exports){
-(function (process){
+},{"async":2,"jsonld":5,"n3/lib/N3Util":6,"uuid":9}],2:[function(require,module,exports){
+(function (process,global){
 /*!
  * async
  * https://github.com/caolan/async
@@ -253,18 +258,32 @@ module.exports = levelgraphJSONLD;
  * Copyright 2010-2014 Caolan McMahon
  * Released under the MIT license
  */
-/*jshint onevar: false, indent:4 */
-/*global setImmediate: false, setTimeout: false, console: false */
 (function () {
 
     var async = {};
+    function noop() {}
+    function identity(v) {
+        return v;
+    }
+    function toBool(v) {
+        return !!v;
+    }
+    function notId(v) {
+        return !v;
+    }
 
     // global on the server, window in the browser
-    var root, previous_async;
+    var previous_async;
 
-    root = this;
+    // Establish the root object, `window` (`self`) in the browser, `global`
+    // on the server, or `this` in some virtual machines. We use `self`
+    // instead of `window` for `WebWorker` support.
+    var root = typeof self === 'object' && self.self === self && self ||
+            typeof global === 'object' && global.global === global && global ||
+            this;
+
     if (root != null) {
-      previous_async = root.async;
+        previous_async = root.async;
     }
 
     async.noConflict = function () {
@@ -273,12 +292,19 @@ module.exports = levelgraphJSONLD;
     };
 
     function only_once(fn) {
-        var called = false;
         return function() {
-            if (called) throw new Error("Callback was already called.");
-            called = true;
-            fn.apply(root, arguments);
-        }
+            if (fn === null) throw new Error("Callback was already called.");
+            fn.apply(this, arguments);
+            fn = null;
+        };
+    }
+
+    function _once(fn) {
+        return function() {
+            if (fn === null) return;
+            fn.apply(this, arguments);
+            fn = null;
+        };
     }
 
     //// cross-browser compatiblity functions ////
@@ -289,40 +315,66 @@ module.exports = levelgraphJSONLD;
         return _toString.call(obj) === '[object Array]';
     };
 
-    var _each = function (arr, iterator) {
-        if (arr.forEach) {
-            return arr.forEach(iterator);
-        }
-        for (var i = 0; i < arr.length; i += 1) {
-            iterator(arr[i], i, arr);
-        }
+    // Ported from underscore.js isObject
+    var _isObject = function(obj) {
+        var type = typeof obj;
+        return type === 'function' || type === 'object' && !!obj;
     };
 
-    var _map = function (arr, iterator) {
-        if (arr.map) {
-            return arr.map(iterator);
-        }
-        var results = [];
-        _each(arr, function (x, i, a) {
-            results.push(iterator(x, i, a));
-        });
-        return results;
-    };
+    function _isArrayLike(arr) {
+        return _isArray(arr) || (
+            // has a positive integer length property
+            typeof arr.length === "number" &&
+            arr.length >= 0 &&
+            arr.length % 1 === 0
+        );
+    }
 
-    var _reduce = function (arr, iterator, memo) {
-        if (arr.reduce) {
-            return arr.reduce(iterator, memo);
+    function _arrayEach(arr, iterator) {
+        var index = -1,
+            length = arr.length;
+
+        while (++index < length) {
+            iterator(arr[index], index, arr);
         }
-        _each(arr, function (x, i, a) {
+    }
+
+    function _map(arr, iterator) {
+        var index = -1,
+            length = arr.length,
+            result = Array(length);
+
+        while (++index < length) {
+            result[index] = iterator(arr[index], index, arr);
+        }
+        return result;
+    }
+
+    function _range(count) {
+        return _map(Array(count), function (v, i) { return i; });
+    }
+
+    function _reduce(arr, iterator, memo) {
+        _arrayEach(arr, function (x, i, a) {
             memo = iterator(memo, x, i, a);
         });
         return memo;
-    };
+    }
 
-    var _keys = function (obj) {
-        if (Object.keys) {
-            return Object.keys(obj);
+    function _forEachOf(object, iterator) {
+        _arrayEach(_keys(object), function (key) {
+            iterator(object[key], key);
+        });
+    }
+
+    function _indexOf(arr, item) {
+        for (var i = 0; i < arr.length; i++) {
+            if (arr[i] === item) return i;
         }
+        return -1;
+    }
+
+    var _keys = Object.keys || function (obj) {
         var keys = [];
         for (var k in obj) {
             if (obj.hasOwnProperty(k)) {
@@ -332,191 +384,247 @@ module.exports = levelgraphJSONLD;
         return keys;
     };
 
+    function _keyIterator(coll) {
+        var i = -1;
+        var len;
+        var keys;
+        if (_isArrayLike(coll)) {
+            len = coll.length;
+            return function next() {
+                i++;
+                return i < len ? i : null;
+            };
+        } else {
+            keys = _keys(coll);
+            len = keys.length;
+            return function next() {
+                i++;
+                return i < len ? keys[i] : null;
+            };
+        }
+    }
+
+    // Similar to ES6's rest param (http://ariya.ofilabs.com/2013/03/es6-and-rest-parameter.html)
+    // This accumulates the arguments passed into an array, after a given index.
+    // From underscore.js (https://github.com/jashkenas/underscore/pull/2140).
+    function _restParam(func, startIndex) {
+        startIndex = startIndex == null ? func.length - 1 : +startIndex;
+        return function() {
+            var length = Math.max(arguments.length - startIndex, 0);
+            var rest = Array(length);
+            for (var index = 0; index < length; index++) {
+                rest[index] = arguments[index + startIndex];
+            }
+            switch (startIndex) {
+                case 0: return func.call(this, rest);
+                case 1: return func.call(this, arguments[0], rest);
+            }
+            // Currently unused but handle cases outside of the switch statement:
+            // var args = Array(startIndex + 1);
+            // for (index = 0; index < startIndex; index++) {
+            //     args[index] = arguments[index];
+            // }
+            // args[startIndex] = rest;
+            // return func.apply(this, args);
+        };
+    }
+
+    function _withoutIndex(iterator) {
+        return function (value, index, callback) {
+            return iterator(value, callback);
+        };
+    }
+
     //// exported async module functions ////
 
     //// nextTick implementation with browser-compatible fallback ////
-    if (typeof process === 'undefined' || !(process.nextTick)) {
-        if (typeof setImmediate === 'function') {
-            async.nextTick = function (fn) {
-                // not a direct alias for IE10 compatibility
-                setImmediate(fn);
-            };
-            async.setImmediate = async.nextTick;
-        }
-        else {
-            async.nextTick = function (fn) {
-                setTimeout(fn, 0);
-            };
-            async.setImmediate = async.nextTick;
-        }
-    }
-    else {
-        async.nextTick = process.nextTick;
-        if (typeof setImmediate !== 'undefined') {
-            async.setImmediate = function (fn) {
-              // not a direct alias for IE10 compatibility
-              setImmediate(fn);
-            };
-        }
-        else {
-            async.setImmediate = async.nextTick;
-        }
-    }
 
+    // capture the global reference to guard against fakeTimer mocks
+    var _setImmediate = typeof setImmediate === 'function' && setImmediate;
+
+    var _delay = _setImmediate ? function(fn) {
+        // not a direct alias for IE10 compatibility
+        _setImmediate(fn);
+    } : function(fn) {
+        setTimeout(fn, 0);
+    };
+
+    if (typeof process === 'object' && typeof process.nextTick === 'function') {
+        async.nextTick = process.nextTick;
+    } else {
+        async.nextTick = _delay;
+    }
+    async.setImmediate = _setImmediate ? _delay : async.nextTick;
+
+
+    async.forEach =
     async.each = function (arr, iterator, callback) {
-        callback = callback || function () {};
-        if (!arr.length) {
-            return callback();
+        return async.eachOf(arr, _withoutIndex(iterator), callback);
+    };
+
+    async.forEachSeries =
+    async.eachSeries = function (arr, iterator, callback) {
+        return async.eachOfSeries(arr, _withoutIndex(iterator), callback);
+    };
+
+
+    async.forEachLimit =
+    async.eachLimit = function (arr, limit, iterator, callback) {
+        return _eachOfLimit(limit)(arr, _withoutIndex(iterator), callback);
+    };
+
+    async.forEachOf =
+    async.eachOf = function (object, iterator, callback) {
+        callback = _once(callback || noop);
+        object = object || [];
+
+        var iter = _keyIterator(object);
+        var key, completed = 0;
+
+        while ((key = iter()) != null) {
+            completed += 1;
+            iterator(object[key], key, only_once(done));
         }
-        var completed = 0;
-        _each(arr, function (x) {
-            iterator(x, only_once(done) );
-        });
+
+        if (completed === 0) callback(null);
+
         function done(err) {
-          if (err) {
-              callback(err);
-              callback = function () {};
-          }
-          else {
-              completed += 1;
-              if (completed >= arr.length) {
-                  callback();
-              }
-          }
+            completed--;
+            if (err) {
+                callback(err);
+            }
+            // Check key is null in case iterator isn't exhausted
+            // and done resolved synchronously.
+            else if (key === null && completed <= 0) {
+                callback(null);
+            }
         }
     };
-    async.forEach = async.each;
 
-    async.eachSeries = function (arr, iterator, callback) {
-        callback = callback || function () {};
-        if (!arr.length) {
-            return callback();
-        }
-        var completed = 0;
-        var iterate = function () {
-            iterator(arr[completed], function (err) {
+    async.forEachOfSeries =
+    async.eachOfSeries = function (obj, iterator, callback) {
+        callback = _once(callback || noop);
+        obj = obj || [];
+        var nextKey = _keyIterator(obj);
+        var key = nextKey();
+        function iterate() {
+            var sync = true;
+            if (key === null) {
+                return callback(null);
+            }
+            iterator(obj[key], key, only_once(function (err) {
                 if (err) {
                     callback(err);
-                    callback = function () {};
                 }
                 else {
-                    completed += 1;
-                    if (completed >= arr.length) {
-                        callback();
-                    }
-                    else {
-                        iterate();
+                    key = nextKey();
+                    if (key === null) {
+                        return callback(null);
+                    } else {
+                        if (sync) {
+                            async.setImmediate(iterate);
+                        } else {
+                            iterate();
+                        }
                     }
                 }
-            });
-        };
+            }));
+            sync = false;
+        }
         iterate();
     };
-    async.forEachSeries = async.eachSeries;
 
-    async.eachLimit = function (arr, limit, iterator, callback) {
-        var fn = _eachLimit(limit);
-        fn.apply(null, [arr, iterator, callback]);
+
+
+    async.forEachOfLimit =
+    async.eachOfLimit = function (obj, limit, iterator, callback) {
+        _eachOfLimit(limit)(obj, iterator, callback);
     };
-    async.forEachLimit = async.eachLimit;
 
-    var _eachLimit = function (limit) {
+    function _eachOfLimit(limit) {
 
-        return function (arr, iterator, callback) {
-            callback = callback || function () {};
-            if (!arr.length || limit <= 0) {
-                return callback();
+        return function (obj, iterator, callback) {
+            callback = _once(callback || noop);
+            obj = obj || [];
+            var nextKey = _keyIterator(obj);
+            if (limit <= 0) {
+                return callback(null);
             }
-            var completed = 0;
-            var started = 0;
+            var done = false;
             var running = 0;
+            var errored = false;
 
             (function replenish () {
-                if (completed >= arr.length) {
-                    return callback();
+                if (done && running <= 0) {
+                    return callback(null);
                 }
 
-                while (running < limit && started < arr.length) {
-                    started += 1;
+                while (running < limit && !errored) {
+                    var key = nextKey();
+                    if (key === null) {
+                        done = true;
+                        if (running <= 0) {
+                            callback(null);
+                        }
+                        return;
+                    }
                     running += 1;
-                    iterator(arr[started - 1], function (err) {
+                    iterator(obj[key], key, only_once(function (err) {
+                        running -= 1;
                         if (err) {
                             callback(err);
-                            callback = function () {};
+                            errored = true;
                         }
                         else {
-                            completed += 1;
-                            running -= 1;
-                            if (completed >= arr.length) {
-                                callback();
-                            }
-                            else {
-                                replenish();
-                            }
+                            replenish();
                         }
-                    });
+                    }));
                 }
             })();
         };
-    };
+    }
 
 
-    var doParallel = function (fn) {
-        return function () {
-            var args = Array.prototype.slice.call(arguments);
-            return fn.apply(null, [async.each].concat(args));
+    function doParallel(fn) {
+        return function (obj, iterator, callback) {
+            return fn(async.eachOf, obj, iterator, callback);
         };
-    };
-    var doParallelLimit = function(limit, fn) {
-        return function () {
-            var args = Array.prototype.slice.call(arguments);
-            return fn.apply(null, [_eachLimit(limit)].concat(args));
+    }
+    function doParallelLimit(fn) {
+        return function (obj, limit, iterator, callback) {
+            return fn(_eachOfLimit(limit), obj, iterator, callback);
         };
-    };
-    var doSeries = function (fn) {
-        return function () {
-            var args = Array.prototype.slice.call(arguments);
-            return fn.apply(null, [async.eachSeries].concat(args));
+    }
+    function doSeries(fn) {
+        return function (obj, iterator, callback) {
+            return fn(async.eachOfSeries, obj, iterator, callback);
         };
-    };
+    }
 
-
-    var _asyncMap = function (eachfn, arr, iterator, callback) {
-        arr = _map(arr, function (x, i) {
-            return {index: i, value: x};
+    function _asyncMap(eachfn, arr, iterator, callback) {
+        callback = _once(callback || noop);
+        arr = arr || [];
+        var results = _isArrayLike(arr) ? [] : {};
+        eachfn(arr, function (value, index, callback) {
+            iterator(value, function (err, v) {
+                results[index] = v;
+                callback(err);
+            });
+        }, function (err) {
+            callback(err, results);
         });
-        if (!callback) {
-            eachfn(arr, function (x, callback) {
-                iterator(x.value, function (err) {
-                    callback(err);
-                });
-            });
-        } else {
-            var results = [];
-            eachfn(arr, function (x, callback) {
-                iterator(x.value, function (err, v) {
-                    results[x.index] = v;
-                    callback(err);
-                });
-            }, function (err) {
-                callback(err, results);
-            });
-        }
-    };
+    }
+
     async.map = doParallel(_asyncMap);
     async.mapSeries = doSeries(_asyncMap);
-    async.mapLimit = function (arr, limit, iterator, callback) {
-        return _mapLimit(limit)(arr, iterator, callback);
-    };
-
-    var _mapLimit = function(limit) {
-        return doParallelLimit(limit, _asyncMap);
-    };
+    async.mapLimit = doParallelLimit(_asyncMap);
 
     // reduce only has a series version, as doing reduce in parallel won't
     // work in many situations.
+    async.inject =
+    async.foldl =
     async.reduce = function (arr, memo, iterator, callback) {
-        async.eachSeries(arr, function (x, callback) {
+        async.eachOfSeries(arr, function (x, i, callback) {
             iterator(memo, x, function (err, v) {
                 memo = v;
                 callback(err);
@@ -525,118 +633,106 @@ module.exports = levelgraphJSONLD;
             callback(err, memo);
         });
     };
-    // inject alias
-    async.inject = async.reduce;
-    // foldl alias
-    async.foldl = async.reduce;
 
+    async.foldr =
     async.reduceRight = function (arr, memo, iterator, callback) {
-        var reversed = _map(arr, function (x) {
-            return x;
-        }).reverse();
+        var reversed = _map(arr, identity).reverse();
         async.reduce(reversed, memo, iterator, callback);
     };
-    // foldr alias
-    async.foldr = async.reduceRight;
 
-    var _filter = function (eachfn, arr, iterator, callback) {
-        var results = [];
-        arr = _map(arr, function (x, i) {
-            return {index: i, value: x};
+    async.transform = function (arr, memo, iterator, callback) {
+        if (arguments.length === 3) {
+            callback = iterator;
+            iterator = memo;
+            memo = _isArray(arr) ? [] : {};
+        }
+
+        async.eachOf(arr, function(v, k, cb) {
+            iterator(memo, v, k, cb);
+        }, function(err) {
+            callback(err, memo);
         });
-        eachfn(arr, function (x, callback) {
-            iterator(x.value, function (v) {
+    };
+
+    function _filter(eachfn, arr, iterator, callback) {
+        var results = [];
+        eachfn(arr, function (x, index, callback) {
+            iterator(x, function (v) {
                 if (v) {
-                    results.push(x);
+                    results.push({index: index, value: x});
                 }
                 callback();
             });
-        }, function (err) {
+        }, function () {
             callback(_map(results.sort(function (a, b) {
                 return a.index - b.index;
             }), function (x) {
                 return x.value;
             }));
         });
-    };
-    async.filter = doParallel(_filter);
-    async.filterSeries = doSeries(_filter);
-    // select alias
-    async.select = async.filter;
-    async.selectSeries = async.filterSeries;
+    }
 
-    var _reject = function (eachfn, arr, iterator, callback) {
-        var results = [];
-        arr = _map(arr, function (x, i) {
-            return {index: i, value: x};
-        });
-        eachfn(arr, function (x, callback) {
-            iterator(x.value, function (v) {
-                if (!v) {
-                    results.push(x);
-                }
-                callback();
+    async.select =
+    async.filter = doParallel(_filter);
+
+    async.selectLimit =
+    async.filterLimit = doParallelLimit(_filter);
+
+    async.selectSeries =
+    async.filterSeries = doSeries(_filter);
+
+    function _reject(eachfn, arr, iterator, callback) {
+        _filter(eachfn, arr, function(value, cb) {
+            iterator(value, function(v) {
+                cb(!v);
             });
-        }, function (err) {
-            callback(_map(results.sort(function (a, b) {
-                return a.index - b.index;
-            }), function (x) {
-                return x.value;
-            }));
-        });
-    };
+        }, callback);
+    }
     async.reject = doParallel(_reject);
+    async.rejectLimit = doParallelLimit(_reject);
     async.rejectSeries = doSeries(_reject);
 
-    var _detect = function (eachfn, arr, iterator, main_callback) {
-        eachfn(arr, function (x, callback) {
-            iterator(x, function (result) {
-                if (result) {
-                    main_callback(x);
-                    main_callback = function () {};
-                }
-                else {
+    function _createTester(eachfn, check, getResult) {
+        return function(arr, limit, iterator, cb) {
+            function done() {
+                if (cb) cb(getResult(false, void 0));
+            }
+            function iteratee(x, _, callback) {
+                if (!cb) return callback();
+                iterator(x, function (v) {
+                    if (cb && check(v)) {
+                        cb(getResult(true, x));
+                        cb = iterator = false;
+                    }
                     callback();
-                }
-            });
-        }, function (err) {
-            main_callback();
-        });
-    };
-    async.detect = doParallel(_detect);
-    async.detectSeries = doSeries(_detect);
+                });
+            }
+            if (arguments.length > 3) {
+                eachfn(arr, limit, iteratee, done);
+            } else {
+                cb = iterator;
+                iterator = limit;
+                eachfn(arr, iteratee, done);
+            }
+        };
+    }
 
-    async.some = function (arr, iterator, main_callback) {
-        async.each(arr, function (x, callback) {
-            iterator(x, function (v) {
-                if (v) {
-                    main_callback(true);
-                    main_callback = function () {};
-                }
-                callback();
-            });
-        }, function (err) {
-            main_callback(false);
-        });
-    };
-    // any alias
-    async.any = async.some;
+    async.any =
+    async.some = _createTester(async.eachOf, toBool, identity);
 
-    async.every = function (arr, iterator, main_callback) {
-        async.each(arr, function (x, callback) {
-            iterator(x, function (v) {
-                if (!v) {
-                    main_callback(false);
-                    main_callback = function () {};
-                }
-                callback();
-            });
-        }, function (err) {
-            main_callback(true);
-        });
-    };
-    // all alias
-    async.all = async.every;
+    async.someLimit = _createTester(async.eachOfLimit, toBool, identity);
+
+    async.all =
+    async.every = _createTester(async.eachOf, notId, notId);
+
+    async.everyLimit = _createTester(async.eachOfLimit, notId, notId);
+
+    function _findGetResult(v, x) {
+        return x;
+    }
+    async.detect = _createTester(async.eachOf, identity, _findGetResult);
+    async.detectSeries = _createTester(async.eachOfSeries, identity, _findGetResult);
+    async.detectLimit = _createTester(async.eachOfLimit, identity, _findGetResult);
 
     async.sortBy = function (arr, iterator, callback) {
         async.map(arr, function (x, callback) {
@@ -653,147 +749,206 @@ module.exports = levelgraphJSONLD;
                 return callback(err);
             }
             else {
-                var fn = function (left, right) {
-                    var a = left.criteria, b = right.criteria;
-                    return a < b ? -1 : a > b ? 1 : 0;
-                };
-                callback(null, _map(results.sort(fn), function (x) {
+                callback(null, _map(results.sort(comparator), function (x) {
                     return x.value;
                 }));
             }
+
         });
+
+        function comparator(left, right) {
+            var a = left.criteria, b = right.criteria;
+            return a < b ? -1 : a > b ? 1 : 0;
+        }
     };
 
-    async.auto = function (tasks, callback) {
-        callback = callback || function () {};
+    async.auto = function (tasks, concurrency, callback) {
+        if (typeof arguments[1] === 'function') {
+            // concurrency is optional, shift the args.
+            callback = concurrency;
+            concurrency = null;
+        }
+        callback = _once(callback || noop);
         var keys = _keys(tasks);
-        var remainingTasks = keys.length
+        var remainingTasks = keys.length;
         if (!remainingTasks) {
-            return callback();
+            return callback(null);
+        }
+        if (!concurrency) {
+            concurrency = remainingTasks;
         }
 
         var results = {};
+        var runningTasks = 0;
+
+        var hasError = false;
 
         var listeners = [];
-        var addListener = function (fn) {
+        function addListener(fn) {
             listeners.unshift(fn);
-        };
-        var removeListener = function (fn) {
-            for (var i = 0; i < listeners.length; i += 1) {
-                if (listeners[i] === fn) {
-                    listeners.splice(i, 1);
-                    return;
-                }
-            }
-        };
-        var taskComplete = function () {
-            remainingTasks--
-            _each(listeners.slice(0), function (fn) {
+        }
+        function removeListener(fn) {
+            var idx = _indexOf(listeners, fn);
+            if (idx >= 0) listeners.splice(idx, 1);
+        }
+        function taskComplete() {
+            remainingTasks--;
+            _arrayEach(listeners.slice(0), function (fn) {
                 fn();
             });
-        };
+        }
 
         addListener(function () {
             if (!remainingTasks) {
-                var theCallback = callback;
-                // prevent final callback from calling itself if it errors
-                callback = function () {};
-
-                theCallback(null, results);
+                callback(null, results);
             }
         });
 
-        _each(keys, function (k) {
+        _arrayEach(keys, function (k) {
+            if (hasError) return;
             var task = _isArray(tasks[k]) ? tasks[k]: [tasks[k]];
-            var taskCallback = function (err) {
-                var args = Array.prototype.slice.call(arguments, 1);
+            var taskCallback = _restParam(function(err, args) {
+                runningTasks--;
                 if (args.length <= 1) {
                     args = args[0];
                 }
                 if (err) {
                     var safeResults = {};
-                    _each(_keys(results), function(rkey) {
-                        safeResults[rkey] = results[rkey];
+                    _forEachOf(results, function(val, rkey) {
+                        safeResults[rkey] = val;
                     });
                     safeResults[k] = args;
+                    hasError = true;
+
                     callback(err, safeResults);
-                    // stop subsequent errors hitting callback multiple times
-                    callback = function () {};
                 }
                 else {
                     results[k] = args;
                     async.setImmediate(taskComplete);
                 }
-            };
-            var requires = task.slice(0, Math.abs(task.length - 1)) || [];
-            var ready = function () {
-                return _reduce(requires, function (a, x) {
+            });
+            var requires = task.slice(0, task.length - 1);
+            // prevent dead-locks
+            var len = requires.length;
+            var dep;
+            while (len--) {
+                if (!(dep = tasks[requires[len]])) {
+                    throw new Error('Has nonexistent dependency in ' + requires.join(', '));
+                }
+                if (_isArray(dep) && _indexOf(dep, k) >= 0) {
+                    throw new Error('Has cyclic dependencies');
+                }
+            }
+            function ready() {
+                return runningTasks < concurrency && _reduce(requires, function (a, x) {
                     return (a && results.hasOwnProperty(x));
                 }, true) && !results.hasOwnProperty(k);
-            };
+            }
             if (ready()) {
+                runningTasks++;
                 task[task.length - 1](taskCallback, results);
             }
             else {
-                var listener = function () {
-                    if (ready()) {
-                        removeListener(listener);
-                        task[task.length - 1](taskCallback, results);
-                    }
-                };
                 addListener(listener);
+            }
+            function listener() {
+                if (ready()) {
+                    runningTasks++;
+                    removeListener(listener);
+                    task[task.length - 1](taskCallback, results);
+                }
             }
         });
     };
 
+
+
     async.retry = function(times, task, callback) {
         var DEFAULT_TIMES = 5;
+        var DEFAULT_INTERVAL = 0;
+
         var attempts = [];
-        // Use defaults if times not passed
-        if (typeof times === 'function') {
+
+        var opts = {
+            times: DEFAULT_TIMES,
+            interval: DEFAULT_INTERVAL
+        };
+
+        function parseTimes(acc, t){
+            if(typeof t === 'number'){
+                acc.times = parseInt(t, 10) || DEFAULT_TIMES;
+            } else if(typeof t === 'object'){
+                acc.times = parseInt(t.times, 10) || DEFAULT_TIMES;
+                acc.interval = parseInt(t.interval, 10) || DEFAULT_INTERVAL;
+            } else {
+                throw new Error('Unsupported argument type for \'times\': ' + typeof t);
+            }
+        }
+
+        var length = arguments.length;
+        if (length < 1 || length > 3) {
+            throw new Error('Invalid arguments - must be either (task), (task, callback), (times, task) or (times, task, callback)');
+        } else if (length <= 2 && typeof times === 'function') {
             callback = task;
             task = times;
-            times = DEFAULT_TIMES;
         }
-        // Make sure times is a number
-        times = parseInt(times, 10) || DEFAULT_TIMES;
-        var wrappedTask = function(wrappedCallback, wrappedResults) {
-            var retryAttempt = function(task, finalAttempt) {
+        if (typeof times !== 'function') {
+            parseTimes(opts, times);
+        }
+        opts.callback = callback;
+        opts.task = task;
+
+        function wrappedTask(wrappedCallback, wrappedResults) {
+            function retryAttempt(task, finalAttempt) {
                 return function(seriesCallback) {
                     task(function(err, result){
                         seriesCallback(!err || finalAttempt, {err: err, result: result});
                     }, wrappedResults);
                 };
-            };
-            while (times) {
-                attempts.push(retryAttempt(task, !(times-=1)));
             }
+
+            function retryInterval(interval){
+                return function(seriesCallback){
+                    setTimeout(function(){
+                        seriesCallback(null);
+                    }, interval);
+                };
+            }
+
+            while (opts.times) {
+
+                var finalAttempt = !(opts.times-=1);
+                attempts.push(retryAttempt(opts.task, finalAttempt));
+                if(!finalAttempt && opts.interval > 0){
+                    attempts.push(retryInterval(opts.interval));
+                }
+            }
+
             async.series(attempts, function(done, data){
                 data = data[data.length - 1];
-                (wrappedCallback || callback)(data.err, data.result);
+                (wrappedCallback || opts.callback)(data.err, data.result);
             });
         }
+
         // If a callback is passed, run this as a controll flow
-        return callback ? wrappedTask() : wrappedTask
+        return opts.callback ? wrappedTask() : wrappedTask;
     };
 
     async.waterfall = function (tasks, callback) {
-        callback = callback || function () {};
+        callback = _once(callback || noop);
         if (!_isArray(tasks)) {
-          var err = new Error('First argument to waterfall must be an array of functions');
-          return callback(err);
+            var err = new Error('First argument to waterfall must be an array of functions');
+            return callback(err);
         }
         if (!tasks.length) {
             return callback();
         }
-        var wrapIterator = function (iterator) {
-            return function (err) {
+        function wrapIterator(iterator) {
+            return _restParam(function (err, args) {
                 if (err) {
-                    callback.apply(null, arguments);
-                    callback = function () {};
+                    callback.apply(null, [err].concat(args));
                 }
                 else {
-                    var args = Array.prototype.slice.call(arguments, 1);
                     var next = iterator.next();
                     if (next) {
                         args.push(wrapIterator(next));
@@ -801,260 +956,254 @@ module.exports = levelgraphJSONLD;
                     else {
                         args.push(callback);
                     }
-                    async.setImmediate(function () {
-                        iterator.apply(null, args);
-                    });
+                    ensureAsync(iterator).apply(null, args);
                 }
-            };
-        };
+            });
+        }
         wrapIterator(async.iterator(tasks))();
     };
 
-    var _parallel = function(eachfn, tasks, callback) {
-        callback = callback || function () {};
-        if (_isArray(tasks)) {
-            eachfn.map(tasks, function (fn, callback) {
-                if (fn) {
-                    fn(function (err) {
-                        var args = Array.prototype.slice.call(arguments, 1);
-                        if (args.length <= 1) {
-                            args = args[0];
-                        }
-                        callback.call(null, err, args);
-                    });
+    function _parallel(eachfn, tasks, callback) {
+        callback = callback || noop;
+        var results = _isArrayLike(tasks) ? [] : {};
+
+        eachfn(tasks, function (task, key, callback) {
+            task(_restParam(function (err, args) {
+                if (args.length <= 1) {
+                    args = args[0];
                 }
-            }, callback);
-        }
-        else {
-            var results = {};
-            eachfn.each(_keys(tasks), function (k, callback) {
-                tasks[k](function (err) {
-                    var args = Array.prototype.slice.call(arguments, 1);
-                    if (args.length <= 1) {
-                        args = args[0];
-                    }
-                    results[k] = args;
-                    callback(err);
-                });
-            }, function (err) {
-                callback(err, results);
-            });
-        }
-    };
+                results[key] = args;
+                callback(err);
+            }));
+        }, function (err) {
+            callback(err, results);
+        });
+    }
 
     async.parallel = function (tasks, callback) {
-        _parallel({ map: async.map, each: async.each }, tasks, callback);
+        _parallel(async.eachOf, tasks, callback);
     };
 
     async.parallelLimit = function(tasks, limit, callback) {
-        _parallel({ map: _mapLimit(limit), each: _eachLimit(limit) }, tasks, callback);
+        _parallel(_eachOfLimit(limit), tasks, callback);
     };
 
-    async.series = function (tasks, callback) {
-        callback = callback || function () {};
-        if (_isArray(tasks)) {
-            async.mapSeries(tasks, function (fn, callback) {
-                if (fn) {
-                    fn(function (err) {
-                        var args = Array.prototype.slice.call(arguments, 1);
-                        if (args.length <= 1) {
-                            args = args[0];
-                        }
-                        callback.call(null, err, args);
-                    });
-                }
-            }, callback);
-        }
-        else {
-            var results = {};
-            async.eachSeries(_keys(tasks), function (k, callback) {
-                tasks[k](function (err) {
-                    var args = Array.prototype.slice.call(arguments, 1);
-                    if (args.length <= 1) {
-                        args = args[0];
-                    }
-                    results[k] = args;
-                    callback(err);
-                });
-            }, function (err) {
-                callback(err, results);
-            });
-        }
+    async.series = function(tasks, callback) {
+        _parallel(async.eachOfSeries, tasks, callback);
     };
 
     async.iterator = function (tasks) {
-        var makeCallback = function (index) {
-            var fn = function () {
+        function makeCallback(index) {
+            function fn() {
                 if (tasks.length) {
                     tasks[index].apply(null, arguments);
                 }
                 return fn.next();
-            };
+            }
             fn.next = function () {
                 return (index < tasks.length - 1) ? makeCallback(index + 1): null;
             };
             return fn;
-        };
+        }
         return makeCallback(0);
     };
 
-    async.apply = function (fn) {
-        var args = Array.prototype.slice.call(arguments, 1);
-        return function () {
+    async.apply = _restParam(function (fn, args) {
+        return _restParam(function (callArgs) {
             return fn.apply(
-                null, args.concat(Array.prototype.slice.call(arguments))
+                null, args.concat(callArgs)
             );
-        };
-    };
+        });
+    });
 
-    var _concat = function (eachfn, arr, fn, callback) {
-        var r = [];
-        eachfn(arr, function (x, cb) {
+    function _concat(eachfn, arr, fn, callback) {
+        var result = [];
+        eachfn(arr, function (x, index, cb) {
             fn(x, function (err, y) {
-                r = r.concat(y || []);
+                result = result.concat(y || []);
                 cb(err);
             });
         }, function (err) {
-            callback(err, r);
+            callback(err, result);
         });
-    };
+    }
     async.concat = doParallel(_concat);
     async.concatSeries = doSeries(_concat);
 
     async.whilst = function (test, iterator, callback) {
+        callback = callback || noop;
         if (test()) {
-            iterator(function (err) {
+            var next = _restParam(function(err, args) {
                 if (err) {
-                    return callback(err);
+                    callback(err);
+                } else if (test.apply(this, args)) {
+                    iterator(next);
+                } else {
+                    callback.apply(null, [null].concat(args));
                 }
-                async.whilst(test, iterator, callback);
             });
-        }
-        else {
-            callback();
+            iterator(next);
+        } else {
+            callback(null);
         }
     };
 
     async.doWhilst = function (iterator, test, callback) {
-        iterator(function (err) {
-            if (err) {
-                return callback(err);
-            }
-            var args = Array.prototype.slice.call(arguments, 1);
-            if (test.apply(null, args)) {
-                async.doWhilst(iterator, test, callback);
-            }
-            else {
-                callback();
-            }
-        });
+        var calls = 0;
+        return async.whilst(function() {
+            return ++calls <= 1 || test.apply(this, arguments);
+        }, iterator, callback);
     };
 
     async.until = function (test, iterator, callback) {
-        if (!test()) {
-            iterator(function (err) {
-                if (err) {
-                    return callback(err);
-                }
-                async.until(test, iterator, callback);
-            });
-        }
-        else {
-            callback();
-        }
+        return async.whilst(function() {
+            return !test.apply(this, arguments);
+        }, iterator, callback);
     };
 
     async.doUntil = function (iterator, test, callback) {
-        iterator(function (err) {
-            if (err) {
-                return callback(err);
-            }
-            var args = Array.prototype.slice.call(arguments, 1);
-            if (!test.apply(null, args)) {
-                async.doUntil(iterator, test, callback);
-            }
-            else {
-                callback();
-            }
-        });
+        return async.doWhilst(iterator, function() {
+            return !test.apply(this, arguments);
+        }, callback);
     };
 
-    async.queue = function (worker, concurrency) {
-        if (concurrency === undefined) {
+    async.during = function (test, iterator, callback) {
+        callback = callback || noop;
+
+        var next = _restParam(function(err, args) {
+            if (err) {
+                callback(err);
+            } else {
+                args.push(check);
+                test.apply(this, args);
+            }
+        });
+
+        var check = function(err, truth) {
+            if (err) {
+                callback(err);
+            } else if (truth) {
+                iterator(next);
+            } else {
+                callback(null);
+            }
+        };
+
+        test(check);
+    };
+
+    async.doDuring = function (iterator, test, callback) {
+        var calls = 0;
+        async.during(function(next) {
+            if (calls++ < 1) {
+                next(null, true);
+            } else {
+                test.apply(this, arguments);
+            }
+        }, iterator, callback);
+    };
+
+    function _queue(worker, concurrency, payload) {
+        if (concurrency == null) {
             concurrency = 1;
         }
+        else if(concurrency === 0) {
+            throw new Error('Concurrency must not be zero');
+        }
         function _insert(q, data, pos, callback) {
-          if (!q.started){
+            if (callback != null && typeof callback !== "function") {
+                throw new Error("task callback must be a function");
+            }
             q.started = true;
-          }
-          if (!_isArray(data)) {
-              data = [data];
-          }
-          if(data.length == 0) {
-             // call drain immediately if there are no tasks
-             return async.setImmediate(function() {
-                 if (q.drain) {
-                     q.drain();
-                 }
-             });
-          }
-          _each(data, function(task) {
-              var item = {
-                  data: task,
-                  callback: typeof callback === 'function' ? callback : null
-              };
+            if (!_isArray(data)) {
+                data = [data];
+            }
+            if(data.length === 0 && q.idle()) {
+                // call drain immediately if there are no tasks
+                return async.setImmediate(function() {
+                    q.drain();
+                });
+            }
+            _arrayEach(data, function(task) {
+                var item = {
+                    data: task,
+                    callback: callback || noop
+                };
 
-              if (pos) {
-                q.tasks.unshift(item);
-              } else {
-                q.tasks.push(item);
-              }
+                if (pos) {
+                    q.tasks.unshift(item);
+                } else {
+                    q.tasks.push(item);
+                }
 
-              if (q.saturated && q.tasks.length === q.concurrency) {
-                  q.saturated();
-              }
-              async.setImmediate(q.process);
-          });
+                if (q.tasks.length === q.concurrency) {
+                    q.saturated();
+                }
+            });
+            async.setImmediate(q.process);
+        }
+        function _next(q, tasks) {
+            return function(){
+                workers -= 1;
+
+                var removed = false;
+                var args = arguments;
+                _arrayEach(tasks, function (task) {
+                    _arrayEach(workersList, function (worker, index) {
+                        if (worker === task && !removed) {
+                            workersList.splice(index, 1);
+                            removed = true;
+                        }
+                    });
+
+                    task.callback.apply(task, args);
+                });
+                if (q.tasks.length + workers === 0) {
+                    q.drain();
+                }
+                q.process();
+            };
         }
 
         var workers = 0;
+        var workersList = [];
         var q = {
             tasks: [],
             concurrency: concurrency,
-            saturated: null,
-            empty: null,
-            drain: null,
+            payload: payload,
+            saturated: noop,
+            empty: noop,
+            drain: noop,
             started: false,
             paused: false,
             push: function (data, callback) {
-              _insert(q, data, false, callback);
+                _insert(q, data, false, callback);
             },
             kill: function () {
-              q.drain = null;
-              q.tasks = [];
+                q.drain = noop;
+                q.tasks = [];
             },
             unshift: function (data, callback) {
-              _insert(q, data, true, callback);
+                _insert(q, data, true, callback);
             },
             process: function () {
-                if (!q.paused && workers < q.concurrency && q.tasks.length) {
-                    var task = q.tasks.shift();
-                    if (q.empty && q.tasks.length === 0) {
+                while(!q.paused && workers < q.concurrency && q.tasks.length){
+
+                    var tasks = q.payload ?
+                        q.tasks.splice(0, q.payload) :
+                        q.tasks.splice(0, q.tasks.length);
+
+                    var data = _map(tasks, function (task) {
+                        return task.data;
+                    });
+
+                    if (q.tasks.length === 0) {
                         q.empty();
                     }
                     workers += 1;
-                    var next = function () {
-                        workers -= 1;
-                        if (task.callback) {
-                            task.callback.apply(task, arguments);
-                        }
-                        if (q.drain && q.tasks.length + workers === 0) {
-                            q.drain();
-                        }
-                        q.process();
-                    };
-                    var cb = only_once(next);
-                    worker(task.data, cb);
+                    workersList.push(tasks[0]);
+                    var cb = only_once(_next(q, tasks));
+                    worker(data, cb);
                 }
             },
             length: function () {
@@ -1063,82 +1212,95 @@ module.exports = levelgraphJSONLD;
             running: function () {
                 return workers;
             },
+            workersList: function () {
+                return workersList;
+            },
             idle: function() {
                 return q.tasks.length + workers === 0;
             },
             pause: function () {
-                if (q.paused === true) { return; }
                 q.paused = true;
-                q.process();
             },
             resume: function () {
                 if (q.paused === false) { return; }
                 q.paused = false;
-                q.process();
+                var resumeCount = Math.min(q.concurrency, q.tasks.length);
+                // Need to call q.process once per concurrent
+                // worker to preserve full concurrency after pause
+                for (var w = 1; w <= resumeCount; w++) {
+                    async.setImmediate(q.process);
+                }
             }
         };
         return q;
-    };
-    
-    async.priorityQueue = function (worker, concurrency) {
-        
-        function _compareTasks(a, b){
-          return a.priority - b.priority;
-        };
-        
-        function _binarySearch(sequence, item, compare) {
-          var beg = -1,
-              end = sequence.length - 1;
-          while (beg < end) {
-            var mid = beg + ((end - beg + 1) >>> 1);
-            if (compare(item, sequence[mid]) >= 0) {
-              beg = mid;
-            } else {
-              end = mid - 1;
-            }
-          }
-          return beg;
-        }
-        
-        function _insert(q, data, priority, callback) {
-          if (!q.started){
-            q.started = true;
-          }
-          if (!_isArray(data)) {
-              data = [data];
-          }
-          if(data.length == 0) {
-             // call drain immediately if there are no tasks
-             return async.setImmediate(function() {
-                 if (q.drain) {
-                     q.drain();
-                 }
-             });
-          }
-          _each(data, function(task) {
-              var item = {
-                  data: task,
-                  priority: priority,
-                  callback: typeof callback === 'function' ? callback : null
-              };
-              
-              q.tasks.splice(_binarySearch(q.tasks, item, _compareTasks) + 1, 0, item);
+    }
 
-              if (q.saturated && q.tasks.length === q.concurrency) {
-                  q.saturated();
-              }
-              async.setImmediate(q.process);
-          });
+    async.queue = function (worker, concurrency) {
+        var q = _queue(function (items, cb) {
+            worker(items[0], cb);
+        }, concurrency, 1);
+
+        return q;
+    };
+
+    async.priorityQueue = function (worker, concurrency) {
+
+        function _compareTasks(a, b){
+            return a.priority - b.priority;
         }
-        
+
+        function _binarySearch(sequence, item, compare) {
+            var beg = -1,
+                end = sequence.length - 1;
+            while (beg < end) {
+                var mid = beg + ((end - beg + 1) >>> 1);
+                if (compare(item, sequence[mid]) >= 0) {
+                    beg = mid;
+                } else {
+                    end = mid - 1;
+                }
+            }
+            return beg;
+        }
+
+        function _insert(q, data, priority, callback) {
+            if (callback != null && typeof callback !== "function") {
+                throw new Error("task callback must be a function");
+            }
+            q.started = true;
+            if (!_isArray(data)) {
+                data = [data];
+            }
+            if(data.length === 0) {
+                // call drain immediately if there are no tasks
+                return async.setImmediate(function() {
+                    q.drain();
+                });
+            }
+            _arrayEach(data, function(task) {
+                var item = {
+                    data: task,
+                    priority: priority,
+                    callback: typeof callback === 'function' ? callback : noop
+                };
+
+                q.tasks.splice(_binarySearch(q.tasks, item, _compareTasks) + 1, 0, item);
+
+                if (q.tasks.length === q.concurrency) {
+                    q.saturated();
+                }
+                async.setImmediate(q.process);
+            });
+        }
+
         // Start with a normal queue
         var q = async.queue(worker, concurrency);
-        
+
         // Override push to accept second parameter representing priority
         q.push = function (data, priority, callback) {
-          _insert(q, data, priority, callback);
+            _insert(q, data, priority, callback);
         };
-        
+
         // Remove unshift function
         delete q.unshift;
 
@@ -1146,93 +1308,27 @@ module.exports = levelgraphJSONLD;
     };
 
     async.cargo = function (worker, payload) {
-        var working     = false,
-            tasks       = [];
-
-        var cargo = {
-            tasks: tasks,
-            payload: payload,
-            saturated: null,
-            empty: null,
-            drain: null,
-            drained: true,
-            push: function (data, callback) {
-                if (!_isArray(data)) {
-                    data = [data];
-                }
-                _each(data, function(task) {
-                    tasks.push({
-                        data: task,
-                        callback: typeof callback === 'function' ? callback : null
-                    });
-                    cargo.drained = false;
-                    if (cargo.saturated && tasks.length === payload) {
-                        cargo.saturated();
-                    }
-                });
-                async.setImmediate(cargo.process);
-            },
-            process: function process() {
-                if (working) return;
-                if (tasks.length === 0) {
-                    if(cargo.drain && !cargo.drained) cargo.drain();
-                    cargo.drained = true;
-                    return;
-                }
-
-                var ts = typeof payload === 'number'
-                            ? tasks.splice(0, payload)
-                            : tasks.splice(0, tasks.length);
-
-                var ds = _map(ts, function (task) {
-                    return task.data;
-                });
-
-                if(cargo.empty) cargo.empty();
-                working = true;
-                worker(ds, function () {
-                    working = false;
-
-                    var args = arguments;
-                    _each(ts, function (data) {
-                        if (data.callback) {
-                            data.callback.apply(null, args);
-                        }
-                    });
-
-                    process();
-                });
-            },
-            length: function () {
-                return tasks.length;
-            },
-            running: function () {
-                return working;
-            }
-        };
-        return cargo;
+        return _queue(worker, 1, payload);
     };
 
-    var _console_fn = function (name) {
-        return function (fn) {
-            var args = Array.prototype.slice.call(arguments, 1);
-            fn.apply(null, args.concat([function (err) {
-                var args = Array.prototype.slice.call(arguments, 1);
-                if (typeof console !== 'undefined') {
+    function _console_fn(name) {
+        return _restParam(function (fn, args) {
+            fn.apply(null, args.concat([_restParam(function (err, args) {
+                if (typeof console === 'object') {
                     if (err) {
                         if (console.error) {
                             console.error(err);
                         }
                     }
                     else if (console[name]) {
-                        _each(args, function (x) {
+                        _arrayEach(args, function (x) {
                             console[name](x);
                         });
                     }
                 }
-            }]));
-        };
-    };
+            })]));
+        });
+    }
     async.log = _console_fn('log');
     async.dir = _console_fn('dir');
     /*async.info = _console_fn('info');
@@ -1242,123 +1338,174 @@ module.exports = levelgraphJSONLD;
     async.memoize = function (fn, hasher) {
         var memo = {};
         var queues = {};
-        hasher = hasher || function (x) {
-            return x;
-        };
-        var memoized = function () {
-            var args = Array.prototype.slice.call(arguments);
+        var has = Object.prototype.hasOwnProperty;
+        hasher = hasher || identity;
+        var memoized = _restParam(function memoized(args) {
             var callback = args.pop();
             var key = hasher.apply(null, args);
-            if (key in memo) {
-                async.nextTick(function () {
+            if (has.call(memo, key)) {   
+                async.setImmediate(function () {
                     callback.apply(null, memo[key]);
                 });
             }
-            else if (key in queues) {
+            else if (has.call(queues, key)) {
                 queues[key].push(callback);
             }
             else {
                 queues[key] = [callback];
-                fn.apply(null, args.concat([function () {
-                    memo[key] = arguments;
+                fn.apply(null, args.concat([_restParam(function (args) {
+                    memo[key] = args;
                     var q = queues[key];
                     delete queues[key];
                     for (var i = 0, l = q.length; i < l; i++) {
-                      q[i].apply(null, arguments);
+                        q[i].apply(null, args);
                     }
-                }]));
+                })]));
             }
-        };
+        });
         memoized.memo = memo;
         memoized.unmemoized = fn;
         return memoized;
     };
 
     async.unmemoize = function (fn) {
-      return function () {
-        return (fn.unmemoized || fn).apply(null, arguments);
-      };
+        return function () {
+            return (fn.unmemoized || fn).apply(null, arguments);
+        };
     };
 
-    async.times = function (count, iterator, callback) {
-        var counter = [];
-        for (var i = 0; i < count; i++) {
-            counter.push(i);
-        }
-        return async.map(counter, iterator, callback);
-    };
+    function _times(mapper) {
+        return function (count, iterator, callback) {
+            mapper(_range(count), iterator, callback);
+        };
+    }
 
-    async.timesSeries = function (count, iterator, callback) {
-        var counter = [];
-        for (var i = 0; i < count; i++) {
-            counter.push(i);
-        }
-        return async.mapSeries(counter, iterator, callback);
+    async.times = _times(async.map);
+    async.timesSeries = _times(async.mapSeries);
+    async.timesLimit = function (count, limit, iterator, callback) {
+        return async.mapLimit(_range(count), limit, iterator, callback);
     };
 
     async.seq = function (/* functions... */) {
         var fns = arguments;
-        return function () {
+        return _restParam(function (args) {
             var that = this;
-            var args = Array.prototype.slice.call(arguments);
-            var callback = args.pop();
+
+            var callback = args[args.length - 1];
+            if (typeof callback == 'function') {
+                args.pop();
+            } else {
+                callback = noop;
+            }
+
             async.reduce(fns, args, function (newargs, fn, cb) {
-                fn.apply(that, newargs.concat([function () {
-                    var err = arguments[0];
-                    var nextargs = Array.prototype.slice.call(arguments, 1);
+                fn.apply(that, newargs.concat([_restParam(function (err, nextargs) {
                     cb(err, nextargs);
-                }]))
+                })]));
             },
             function (err, results) {
                 callback.apply(that, [err].concat(results));
             });
-        };
+        });
     };
 
     async.compose = function (/* functions... */) {
-      return async.seq.apply(null, Array.prototype.reverse.call(arguments));
+        return async.seq.apply(null, Array.prototype.reverse.call(arguments));
     };
 
-    var _applyEach = function (eachfn, fns /*args...*/) {
-        var go = function () {
-            var that = this;
-            var args = Array.prototype.slice.call(arguments);
-            var callback = args.pop();
-            return eachfn(fns, function (fn, cb) {
-                fn.apply(that, args.concat([cb]));
-            },
-            callback);
-        };
-        if (arguments.length > 2) {
-            var args = Array.prototype.slice.call(arguments, 2);
-            return go.apply(this, args);
-        }
-        else {
-            return go;
-        }
-    };
-    async.applyEach = doParallel(_applyEach);
-    async.applyEachSeries = doSeries(_applyEach);
+
+    function _applyEach(eachfn) {
+        return _restParam(function(fns, args) {
+            var go = _restParam(function(args) {
+                var that = this;
+                var callback = args.pop();
+                return eachfn(fns, function (fn, _, cb) {
+                    fn.apply(that, args.concat([cb]));
+                },
+                callback);
+            });
+            if (args.length) {
+                return go.apply(this, args);
+            }
+            else {
+                return go;
+            }
+        });
+    }
+
+    async.applyEach = _applyEach(async.eachOf);
+    async.applyEachSeries = _applyEach(async.eachOfSeries);
+
 
     async.forever = function (fn, callback) {
+        var done = only_once(callback || noop);
+        var task = ensureAsync(fn);
         function next(err) {
             if (err) {
-                if (callback) {
-                    return callback(err);
-                }
-                throw err;
+                return done(err);
             }
-            fn(next);
+            task(next);
         }
         next();
     };
 
+    function ensureAsync(fn) {
+        return _restParam(function (args) {
+            var callback = args.pop();
+            args.push(function () {
+                var innerArgs = arguments;
+                if (sync) {
+                    async.setImmediate(function () {
+                        callback.apply(null, innerArgs);
+                    });
+                } else {
+                    callback.apply(null, innerArgs);
+                }
+            });
+            var sync = true;
+            fn.apply(this, args);
+            sync = false;
+        });
+    }
+
+    async.ensureAsync = ensureAsync;
+
+    async.constant = _restParam(function(values) {
+        var args = [null].concat(values);
+        return function (callback) {
+            return callback.apply(this, args);
+        };
+    });
+
+    async.wrapSync =
+    async.asyncify = function asyncify(func) {
+        return _restParam(function (args) {
+            var callback = args.pop();
+            var result;
+            try {
+                result = func.apply(this, args);
+            } catch (e) {
+                return callback(e);
+            }
+            // if result is Promise object
+            if (_isObject(result) && typeof result.then === "function") {
+                result.then(function(value) {
+                    callback(null, value);
+                })["catch"](function(err) {
+                    callback(err.message ? err : new Error(err));
+                });
+            } else {
+                callback(null, result);
+            }
+        });
+    };
+
     // Node.js
-    if (typeof module !== 'undefined' && module.exports) {
+    if (typeof module === 'object' && module.exports) {
         module.exports = async;
     }
     // AMD / RequireJS
-    else if (typeof define !== 'undefined' && define.amd) {
+    else if (typeof define === 'function' && define.amd) {
         define([], function () {
             return async;
         });
@@ -1370,106 +1517,981 @@ module.exports = levelgraphJSONLD;
 
 }());
 
-}).call(this,require('_process'))
-},{"_process":3}],3:[function(require,module,exports){
-// shim for using process in browser
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"_process":7}],3:[function(require,module,exports){
+(function (process,global){
+/*!
+ * @overview es6-promise - a tiny implementation of Promises/A+.
+ * @copyright Copyright (c) 2014 Yehuda Katz, Tom Dale, Stefan Penner and contributors (Conversion to ES6 API by Jake Archibald)
+ * @license   Licensed under MIT license
+ *            See https://raw.githubusercontent.com/jakearchibald/es6-promise/master/LICENSE
+ * @version   2.0.1
+ */
 
-var process = module.exports = {};
+(function() {
+    "use strict";
 
-process.nextTick = (function () {
-    var canSetImmediate = typeof window !== 'undefined'
-    && window.setImmediate;
-    var canMutationObserver = typeof window !== 'undefined'
-    && window.MutationObserver;
-    var canPost = typeof window !== 'undefined'
-    && window.postMessage && window.addEventListener
-    ;
-
-    if (canSetImmediate) {
-        return function (f) { return window.setImmediate(f) };
+    function $$utils$$objectOrFunction(x) {
+      return typeof x === 'function' || (typeof x === 'object' && x !== null);
     }
 
-    var queue = [];
-
-    if (canMutationObserver) {
-        var hiddenDiv = document.createElement("div");
-        var observer = new MutationObserver(function () {
-            var queueList = queue.slice();
-            queue.length = 0;
-            queueList.forEach(function (fn) {
-                fn();
-            });
-        });
-
-        observer.observe(hiddenDiv, { attributes: true });
-
-        return function nextTick(fn) {
-            if (!queue.length) {
-                hiddenDiv.setAttribute('yes', 'no');
-            }
-            queue.push(fn);
-        };
+    function $$utils$$isFunction(x) {
+      return typeof x === 'function';
     }
 
-    if (canPost) {
-        window.addEventListener('message', function (ev) {
-            var source = ev.source;
-            if ((source === window || source === null) && ev.data === 'process-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
-
-        return function nextTick(fn) {
-            queue.push(fn);
-            window.postMessage('process-tick', '*');
-        };
+    function $$utils$$isMaybeThenable(x) {
+      return typeof x === 'object' && x !== null;
     }
 
-    return function nextTick(fn) {
-        setTimeout(fn, 0);
+    var $$utils$$_isArray;
+
+    if (!Array.isArray) {
+      $$utils$$_isArray = function (x) {
+        return Object.prototype.toString.call(x) === '[object Array]';
+      };
+    } else {
+      $$utils$$_isArray = Array.isArray;
+    }
+
+    var $$utils$$isArray = $$utils$$_isArray;
+    var $$utils$$now = Date.now || function() { return new Date().getTime(); };
+    function $$utils$$F() { }
+
+    var $$utils$$o_create = (Object.create || function (o) {
+      if (arguments.length > 1) {
+        throw new Error('Second argument not supported');
+      }
+      if (typeof o !== 'object') {
+        throw new TypeError('Argument must be an object');
+      }
+      $$utils$$F.prototype = o;
+      return new $$utils$$F();
+    });
+
+    var $$asap$$len = 0;
+
+    var $$asap$$default = function asap(callback, arg) {
+      $$asap$$queue[$$asap$$len] = callback;
+      $$asap$$queue[$$asap$$len + 1] = arg;
+      $$asap$$len += 2;
+      if ($$asap$$len === 2) {
+        // If len is 1, that means that we need to schedule an async flush.
+        // If additional callbacks are queued before the queue is flushed, they
+        // will be processed by this flush that we are scheduling.
+        $$asap$$scheduleFlush();
+      }
     };
-})();
 
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
+    var $$asap$$browserGlobal = (typeof window !== 'undefined') ? window : {};
+    var $$asap$$BrowserMutationObserver = $$asap$$browserGlobal.MutationObserver || $$asap$$browserGlobal.WebKitMutationObserver;
 
-function noop() {}
+    // test for web worker but not in IE10
+    var $$asap$$isWorker = typeof Uint8ClampedArray !== 'undefined' &&
+      typeof importScripts !== 'undefined' &&
+      typeof MessageChannel !== 'undefined';
 
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
+    // node
+    function $$asap$$useNextTick() {
+      return function() {
+        process.nextTick($$asap$$flush);
+      };
+    }
 
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-};
+    function $$asap$$useMutationObserver() {
+      var iterations = 0;
+      var observer = new $$asap$$BrowserMutationObserver($$asap$$flush);
+      var node = document.createTextNode('');
+      observer.observe(node, { characterData: true });
 
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
+      return function() {
+        node.data = (iterations = ++iterations % 2);
+      };
+    }
 
-},{}],4:[function(require,module,exports){
+    // web worker
+    function $$asap$$useMessageChannel() {
+      var channel = new MessageChannel();
+      channel.port1.onmessage = $$asap$$flush;
+      return function () {
+        channel.port2.postMessage(0);
+      };
+    }
+
+    function $$asap$$useSetTimeout() {
+      return function() {
+        setTimeout($$asap$$flush, 1);
+      };
+    }
+
+    var $$asap$$queue = new Array(1000);
+
+    function $$asap$$flush() {
+      for (var i = 0; i < $$asap$$len; i+=2) {
+        var callback = $$asap$$queue[i];
+        var arg = $$asap$$queue[i+1];
+
+        callback(arg);
+
+        $$asap$$queue[i] = undefined;
+        $$asap$$queue[i+1] = undefined;
+      }
+
+      $$asap$$len = 0;
+    }
+
+    var $$asap$$scheduleFlush;
+
+    // Decide what async method to use to triggering processing of queued callbacks:
+    if (typeof process !== 'undefined' && {}.toString.call(process) === '[object process]') {
+      $$asap$$scheduleFlush = $$asap$$useNextTick();
+    } else if ($$asap$$BrowserMutationObserver) {
+      $$asap$$scheduleFlush = $$asap$$useMutationObserver();
+    } else if ($$asap$$isWorker) {
+      $$asap$$scheduleFlush = $$asap$$useMessageChannel();
+    } else {
+      $$asap$$scheduleFlush = $$asap$$useSetTimeout();
+    }
+
+    function $$$internal$$noop() {}
+    var $$$internal$$PENDING   = void 0;
+    var $$$internal$$FULFILLED = 1;
+    var $$$internal$$REJECTED  = 2;
+    var $$$internal$$GET_THEN_ERROR = new $$$internal$$ErrorObject();
+
+    function $$$internal$$selfFullfillment() {
+      return new TypeError("You cannot resolve a promise with itself");
+    }
+
+    function $$$internal$$cannotReturnOwn() {
+      return new TypeError('A promises callback cannot return that same promise.')
+    }
+
+    function $$$internal$$getThen(promise) {
+      try {
+        return promise.then;
+      } catch(error) {
+        $$$internal$$GET_THEN_ERROR.error = error;
+        return $$$internal$$GET_THEN_ERROR;
+      }
+    }
+
+    function $$$internal$$tryThen(then, value, fulfillmentHandler, rejectionHandler) {
+      try {
+        then.call(value, fulfillmentHandler, rejectionHandler);
+      } catch(e) {
+        return e;
+      }
+    }
+
+    function $$$internal$$handleForeignThenable(promise, thenable, then) {
+       $$asap$$default(function(promise) {
+        var sealed = false;
+        var error = $$$internal$$tryThen(then, thenable, function(value) {
+          if (sealed) { return; }
+          sealed = true;
+          if (thenable !== value) {
+            $$$internal$$resolve(promise, value);
+          } else {
+            $$$internal$$fulfill(promise, value);
+          }
+        }, function(reason) {
+          if (sealed) { return; }
+          sealed = true;
+
+          $$$internal$$reject(promise, reason);
+        }, 'Settle: ' + (promise._label || ' unknown promise'));
+
+        if (!sealed && error) {
+          sealed = true;
+          $$$internal$$reject(promise, error);
+        }
+      }, promise);
+    }
+
+    function $$$internal$$handleOwnThenable(promise, thenable) {
+      if (thenable._state === $$$internal$$FULFILLED) {
+        $$$internal$$fulfill(promise, thenable._result);
+      } else if (promise._state === $$$internal$$REJECTED) {
+        $$$internal$$reject(promise, thenable._result);
+      } else {
+        $$$internal$$subscribe(thenable, undefined, function(value) {
+          $$$internal$$resolve(promise, value);
+        }, function(reason) {
+          $$$internal$$reject(promise, reason);
+        });
+      }
+    }
+
+    function $$$internal$$handleMaybeThenable(promise, maybeThenable) {
+      if (maybeThenable.constructor === promise.constructor) {
+        $$$internal$$handleOwnThenable(promise, maybeThenable);
+      } else {
+        var then = $$$internal$$getThen(maybeThenable);
+
+        if (then === $$$internal$$GET_THEN_ERROR) {
+          $$$internal$$reject(promise, $$$internal$$GET_THEN_ERROR.error);
+        } else if (then === undefined) {
+          $$$internal$$fulfill(promise, maybeThenable);
+        } else if ($$utils$$isFunction(then)) {
+          $$$internal$$handleForeignThenable(promise, maybeThenable, then);
+        } else {
+          $$$internal$$fulfill(promise, maybeThenable);
+        }
+      }
+    }
+
+    function $$$internal$$resolve(promise, value) {
+      if (promise === value) {
+        $$$internal$$reject(promise, $$$internal$$selfFullfillment());
+      } else if ($$utils$$objectOrFunction(value)) {
+        $$$internal$$handleMaybeThenable(promise, value);
+      } else {
+        $$$internal$$fulfill(promise, value);
+      }
+    }
+
+    function $$$internal$$publishRejection(promise) {
+      if (promise._onerror) {
+        promise._onerror(promise._result);
+      }
+
+      $$$internal$$publish(promise);
+    }
+
+    function $$$internal$$fulfill(promise, value) {
+      if (promise._state !== $$$internal$$PENDING) { return; }
+
+      promise._result = value;
+      promise._state = $$$internal$$FULFILLED;
+
+      if (promise._subscribers.length === 0) {
+      } else {
+        $$asap$$default($$$internal$$publish, promise);
+      }
+    }
+
+    function $$$internal$$reject(promise, reason) {
+      if (promise._state !== $$$internal$$PENDING) { return; }
+      promise._state = $$$internal$$REJECTED;
+      promise._result = reason;
+
+      $$asap$$default($$$internal$$publishRejection, promise);
+    }
+
+    function $$$internal$$subscribe(parent, child, onFulfillment, onRejection) {
+      var subscribers = parent._subscribers;
+      var length = subscribers.length;
+
+      parent._onerror = null;
+
+      subscribers[length] = child;
+      subscribers[length + $$$internal$$FULFILLED] = onFulfillment;
+      subscribers[length + $$$internal$$REJECTED]  = onRejection;
+
+      if (length === 0 && parent._state) {
+        $$asap$$default($$$internal$$publish, parent);
+      }
+    }
+
+    function $$$internal$$publish(promise) {
+      var subscribers = promise._subscribers;
+      var settled = promise._state;
+
+      if (subscribers.length === 0) { return; }
+
+      var child, callback, detail = promise._result;
+
+      for (var i = 0; i < subscribers.length; i += 3) {
+        child = subscribers[i];
+        callback = subscribers[i + settled];
+
+        if (child) {
+          $$$internal$$invokeCallback(settled, child, callback, detail);
+        } else {
+          callback(detail);
+        }
+      }
+
+      promise._subscribers.length = 0;
+    }
+
+    function $$$internal$$ErrorObject() {
+      this.error = null;
+    }
+
+    var $$$internal$$TRY_CATCH_ERROR = new $$$internal$$ErrorObject();
+
+    function $$$internal$$tryCatch(callback, detail) {
+      try {
+        return callback(detail);
+      } catch(e) {
+        $$$internal$$TRY_CATCH_ERROR.error = e;
+        return $$$internal$$TRY_CATCH_ERROR;
+      }
+    }
+
+    function $$$internal$$invokeCallback(settled, promise, callback, detail) {
+      var hasCallback = $$utils$$isFunction(callback),
+          value, error, succeeded, failed;
+
+      if (hasCallback) {
+        value = $$$internal$$tryCatch(callback, detail);
+
+        if (value === $$$internal$$TRY_CATCH_ERROR) {
+          failed = true;
+          error = value.error;
+          value = null;
+        } else {
+          succeeded = true;
+        }
+
+        if (promise === value) {
+          $$$internal$$reject(promise, $$$internal$$cannotReturnOwn());
+          return;
+        }
+
+      } else {
+        value = detail;
+        succeeded = true;
+      }
+
+      if (promise._state !== $$$internal$$PENDING) {
+        // noop
+      } else if (hasCallback && succeeded) {
+        $$$internal$$resolve(promise, value);
+      } else if (failed) {
+        $$$internal$$reject(promise, error);
+      } else if (settled === $$$internal$$FULFILLED) {
+        $$$internal$$fulfill(promise, value);
+      } else if (settled === $$$internal$$REJECTED) {
+        $$$internal$$reject(promise, value);
+      }
+    }
+
+    function $$$internal$$initializePromise(promise, resolver) {
+      try {
+        resolver(function resolvePromise(value){
+          $$$internal$$resolve(promise, value);
+        }, function rejectPromise(reason) {
+          $$$internal$$reject(promise, reason);
+        });
+      } catch(e) {
+        $$$internal$$reject(promise, e);
+      }
+    }
+
+    function $$$enumerator$$makeSettledResult(state, position, value) {
+      if (state === $$$internal$$FULFILLED) {
+        return {
+          state: 'fulfilled',
+          value: value
+        };
+      } else {
+        return {
+          state: 'rejected',
+          reason: value
+        };
+      }
+    }
+
+    function $$$enumerator$$Enumerator(Constructor, input, abortOnReject, label) {
+      this._instanceConstructor = Constructor;
+      this.promise = new Constructor($$$internal$$noop, label);
+      this._abortOnReject = abortOnReject;
+
+      if (this._validateInput(input)) {
+        this._input     = input;
+        this.length     = input.length;
+        this._remaining = input.length;
+
+        this._init();
+
+        if (this.length === 0) {
+          $$$internal$$fulfill(this.promise, this._result);
+        } else {
+          this.length = this.length || 0;
+          this._enumerate();
+          if (this._remaining === 0) {
+            $$$internal$$fulfill(this.promise, this._result);
+          }
+        }
+      } else {
+        $$$internal$$reject(this.promise, this._validationError());
+      }
+    }
+
+    $$$enumerator$$Enumerator.prototype._validateInput = function(input) {
+      return $$utils$$isArray(input);
+    };
+
+    $$$enumerator$$Enumerator.prototype._validationError = function() {
+      return new Error('Array Methods must be provided an Array');
+    };
+
+    $$$enumerator$$Enumerator.prototype._init = function() {
+      this._result = new Array(this.length);
+    };
+
+    var $$$enumerator$$default = $$$enumerator$$Enumerator;
+
+    $$$enumerator$$Enumerator.prototype._enumerate = function() {
+      var length  = this.length;
+      var promise = this.promise;
+      var input   = this._input;
+
+      for (var i = 0; promise._state === $$$internal$$PENDING && i < length; i++) {
+        this._eachEntry(input[i], i);
+      }
+    };
+
+    $$$enumerator$$Enumerator.prototype._eachEntry = function(entry, i) {
+      var c = this._instanceConstructor;
+      if ($$utils$$isMaybeThenable(entry)) {
+        if (entry.constructor === c && entry._state !== $$$internal$$PENDING) {
+          entry._onerror = null;
+          this._settledAt(entry._state, i, entry._result);
+        } else {
+          this._willSettleAt(c.resolve(entry), i);
+        }
+      } else {
+        this._remaining--;
+        this._result[i] = this._makeResult($$$internal$$FULFILLED, i, entry);
+      }
+    };
+
+    $$$enumerator$$Enumerator.prototype._settledAt = function(state, i, value) {
+      var promise = this.promise;
+
+      if (promise._state === $$$internal$$PENDING) {
+        this._remaining--;
+
+        if (this._abortOnReject && state === $$$internal$$REJECTED) {
+          $$$internal$$reject(promise, value);
+        } else {
+          this._result[i] = this._makeResult(state, i, value);
+        }
+      }
+
+      if (this._remaining === 0) {
+        $$$internal$$fulfill(promise, this._result);
+      }
+    };
+
+    $$$enumerator$$Enumerator.prototype._makeResult = function(state, i, value) {
+      return value;
+    };
+
+    $$$enumerator$$Enumerator.prototype._willSettleAt = function(promise, i) {
+      var enumerator = this;
+
+      $$$internal$$subscribe(promise, undefined, function(value) {
+        enumerator._settledAt($$$internal$$FULFILLED, i, value);
+      }, function(reason) {
+        enumerator._settledAt($$$internal$$REJECTED, i, reason);
+      });
+    };
+
+    var $$promise$all$$default = function all(entries, label) {
+      return new $$$enumerator$$default(this, entries, true /* abort on reject */, label).promise;
+    };
+
+    var $$promise$race$$default = function race(entries, label) {
+      /*jshint validthis:true */
+      var Constructor = this;
+
+      var promise = new Constructor($$$internal$$noop, label);
+
+      if (!$$utils$$isArray(entries)) {
+        $$$internal$$reject(promise, new TypeError('You must pass an array to race.'));
+        return promise;
+      }
+
+      var length = entries.length;
+
+      function onFulfillment(value) {
+        $$$internal$$resolve(promise, value);
+      }
+
+      function onRejection(reason) {
+        $$$internal$$reject(promise, reason);
+      }
+
+      for (var i = 0; promise._state === $$$internal$$PENDING && i < length; i++) {
+        $$$internal$$subscribe(Constructor.resolve(entries[i]), undefined, onFulfillment, onRejection);
+      }
+
+      return promise;
+    };
+
+    var $$promise$resolve$$default = function resolve(object, label) {
+      /*jshint validthis:true */
+      var Constructor = this;
+
+      if (object && typeof object === 'object' && object.constructor === Constructor) {
+        return object;
+      }
+
+      var promise = new Constructor($$$internal$$noop, label);
+      $$$internal$$resolve(promise, object);
+      return promise;
+    };
+
+    var $$promise$reject$$default = function reject(reason, label) {
+      /*jshint validthis:true */
+      var Constructor = this;
+      var promise = new Constructor($$$internal$$noop, label);
+      $$$internal$$reject(promise, reason);
+      return promise;
+    };
+
+    var $$es6$promise$promise$$counter = 0;
+
+    function $$es6$promise$promise$$needsResolver() {
+      throw new TypeError('You must pass a resolver function as the first argument to the promise constructor');
+    }
+
+    function $$es6$promise$promise$$needsNew() {
+      throw new TypeError("Failed to construct 'Promise': Please use the 'new' operator, this object constructor cannot be called as a function.");
+    }
+
+    var $$es6$promise$promise$$default = $$es6$promise$promise$$Promise;
+
+    /**
+      Promise objects represent the eventual result of an asynchronous operation. The
+      primary way of interacting with a promise is through its `then` method, which
+      registers callbacks to receive either a promise’s eventual value or the reason
+      why the promise cannot be fulfilled.
+
+      Terminology
+      -----------
+
+      - `promise` is an object or function with a `then` method whose behavior conforms to this specification.
+      - `thenable` is an object or function that defines a `then` method.
+      - `value` is any legal JavaScript value (including undefined, a thenable, or a promise).
+      - `exception` is a value that is thrown using the throw statement.
+      - `reason` is a value that indicates why a promise was rejected.
+      - `settled` the final resting state of a promise, fulfilled or rejected.
+
+      A promise can be in one of three states: pending, fulfilled, or rejected.
+
+      Promises that are fulfilled have a fulfillment value and are in the fulfilled
+      state.  Promises that are rejected have a rejection reason and are in the
+      rejected state.  A fulfillment value is never a thenable.
+
+      Promises can also be said to *resolve* a value.  If this value is also a
+      promise, then the original promise's settled state will match the value's
+      settled state.  So a promise that *resolves* a promise that rejects will
+      itself reject, and a promise that *resolves* a promise that fulfills will
+      itself fulfill.
+
+
+      Basic Usage:
+      ------------
+
+      ```js
+      var promise = new Promise(function(resolve, reject) {
+        // on success
+        resolve(value);
+
+        // on failure
+        reject(reason);
+      });
+
+      promise.then(function(value) {
+        // on fulfillment
+      }, function(reason) {
+        // on rejection
+      });
+      ```
+
+      Advanced Usage:
+      ---------------
+
+      Promises shine when abstracting away asynchronous interactions such as
+      `XMLHttpRequest`s.
+
+      ```js
+      function getJSON(url) {
+        return new Promise(function(resolve, reject){
+          var xhr = new XMLHttpRequest();
+
+          xhr.open('GET', url);
+          xhr.onreadystatechange = handler;
+          xhr.responseType = 'json';
+          xhr.setRequestHeader('Accept', 'application/json');
+          xhr.send();
+
+          function handler() {
+            if (this.readyState === this.DONE) {
+              if (this.status === 200) {
+                resolve(this.response);
+              } else {
+                reject(new Error('getJSON: `' + url + '` failed with status: [' + this.status + ']'));
+              }
+            }
+          };
+        });
+      }
+
+      getJSON('/posts.json').then(function(json) {
+        // on fulfillment
+      }, function(reason) {
+        // on rejection
+      });
+      ```
+
+      Unlike callbacks, promises are great composable primitives.
+
+      ```js
+      Promise.all([
+        getJSON('/posts'),
+        getJSON('/comments')
+      ]).then(function(values){
+        values[0] // => postsJSON
+        values[1] // => commentsJSON
+
+        return values;
+      });
+      ```
+
+      @class Promise
+      @param {function} resolver
+      Useful for tooling.
+      @constructor
+    */
+    function $$es6$promise$promise$$Promise(resolver) {
+      this._id = $$es6$promise$promise$$counter++;
+      this._state = undefined;
+      this._result = undefined;
+      this._subscribers = [];
+
+      if ($$$internal$$noop !== resolver) {
+        if (!$$utils$$isFunction(resolver)) {
+          $$es6$promise$promise$$needsResolver();
+        }
+
+        if (!(this instanceof $$es6$promise$promise$$Promise)) {
+          $$es6$promise$promise$$needsNew();
+        }
+
+        $$$internal$$initializePromise(this, resolver);
+      }
+    }
+
+    $$es6$promise$promise$$Promise.all = $$promise$all$$default;
+    $$es6$promise$promise$$Promise.race = $$promise$race$$default;
+    $$es6$promise$promise$$Promise.resolve = $$promise$resolve$$default;
+    $$es6$promise$promise$$Promise.reject = $$promise$reject$$default;
+
+    $$es6$promise$promise$$Promise.prototype = {
+      constructor: $$es6$promise$promise$$Promise,
+
+    /**
+      The primary way of interacting with a promise is through its `then` method,
+      which registers callbacks to receive either a promise's eventual value or the
+      reason why the promise cannot be fulfilled.
+
+      ```js
+      findUser().then(function(user){
+        // user is available
+      }, function(reason){
+        // user is unavailable, and you are given the reason why
+      });
+      ```
+
+      Chaining
+      --------
+
+      The return value of `then` is itself a promise.  This second, 'downstream'
+      promise is resolved with the return value of the first promise's fulfillment
+      or rejection handler, or rejected if the handler throws an exception.
+
+      ```js
+      findUser().then(function (user) {
+        return user.name;
+      }, function (reason) {
+        return 'default name';
+      }).then(function (userName) {
+        // If `findUser` fulfilled, `userName` will be the user's name, otherwise it
+        // will be `'default name'`
+      });
+
+      findUser().then(function (user) {
+        throw new Error('Found user, but still unhappy');
+      }, function (reason) {
+        throw new Error('`findUser` rejected and we're unhappy');
+      }).then(function (value) {
+        // never reached
+      }, function (reason) {
+        // if `findUser` fulfilled, `reason` will be 'Found user, but still unhappy'.
+        // If `findUser` rejected, `reason` will be '`findUser` rejected and we're unhappy'.
+      });
+      ```
+      If the downstream promise does not specify a rejection handler, rejection reasons will be propagated further downstream.
+
+      ```js
+      findUser().then(function (user) {
+        throw new PedagogicalException('Upstream error');
+      }).then(function (value) {
+        // never reached
+      }).then(function (value) {
+        // never reached
+      }, function (reason) {
+        // The `PedgagocialException` is propagated all the way down to here
+      });
+      ```
+
+      Assimilation
+      ------------
+
+      Sometimes the value you want to propagate to a downstream promise can only be
+      retrieved asynchronously. This can be achieved by returning a promise in the
+      fulfillment or rejection handler. The downstream promise will then be pending
+      until the returned promise is settled. This is called *assimilation*.
+
+      ```js
+      findUser().then(function (user) {
+        return findCommentsByAuthor(user);
+      }).then(function (comments) {
+        // The user's comments are now available
+      });
+      ```
+
+      If the assimliated promise rejects, then the downstream promise will also reject.
+
+      ```js
+      findUser().then(function (user) {
+        return findCommentsByAuthor(user);
+      }).then(function (comments) {
+        // If `findCommentsByAuthor` fulfills, we'll have the value here
+      }, function (reason) {
+        // If `findCommentsByAuthor` rejects, we'll have the reason here
+      });
+      ```
+
+      Simple Example
+      --------------
+
+      Synchronous Example
+
+      ```javascript
+      var result;
+
+      try {
+        result = findResult();
+        // success
+      } catch(reason) {
+        // failure
+      }
+      ```
+
+      Errback Example
+
+      ```js
+      findResult(function(result, err){
+        if (err) {
+          // failure
+        } else {
+          // success
+        }
+      });
+      ```
+
+      Promise Example;
+
+      ```javascript
+      findResult().then(function(result){
+        // success
+      }, function(reason){
+        // failure
+      });
+      ```
+
+      Advanced Example
+      --------------
+
+      Synchronous Example
+
+      ```javascript
+      var author, books;
+
+      try {
+        author = findAuthor();
+        books  = findBooksByAuthor(author);
+        // success
+      } catch(reason) {
+        // failure
+      }
+      ```
+
+      Errback Example
+
+      ```js
+
+      function foundBooks(books) {
+
+      }
+
+      function failure(reason) {
+
+      }
+
+      findAuthor(function(author, err){
+        if (err) {
+          failure(err);
+          // failure
+        } else {
+          try {
+            findBoooksByAuthor(author, function(books, err) {
+              if (err) {
+                failure(err);
+              } else {
+                try {
+                  foundBooks(books);
+                } catch(reason) {
+                  failure(reason);
+                }
+              }
+            });
+          } catch(error) {
+            failure(err);
+          }
+          // success
+        }
+      });
+      ```
+
+      Promise Example;
+
+      ```javascript
+      findAuthor().
+        then(findBooksByAuthor).
+        then(function(books){
+          // found books
+      }).catch(function(reason){
+        // something went wrong
+      });
+      ```
+
+      @method then
+      @param {Function} onFulfilled
+      @param {Function} onRejected
+      Useful for tooling.
+      @return {Promise}
+    */
+      then: function(onFulfillment, onRejection) {
+        var parent = this;
+        var state = parent._state;
+
+        if (state === $$$internal$$FULFILLED && !onFulfillment || state === $$$internal$$REJECTED && !onRejection) {
+          return this;
+        }
+
+        var child = new this.constructor($$$internal$$noop);
+        var result = parent._result;
+
+        if (state) {
+          var callback = arguments[state - 1];
+          $$asap$$default(function(){
+            $$$internal$$invokeCallback(state, child, callback, result);
+          });
+        } else {
+          $$$internal$$subscribe(parent, child, onFulfillment, onRejection);
+        }
+
+        return child;
+      },
+
+    /**
+      `catch` is simply sugar for `then(undefined, onRejection)` which makes it the same
+      as the catch block of a try/catch statement.
+
+      ```js
+      function findAuthor(){
+        throw new Error('couldn't find that author');
+      }
+
+      // synchronous
+      try {
+        findAuthor();
+      } catch(reason) {
+        // something went wrong
+      }
+
+      // async with promises
+      findAuthor().catch(function(reason){
+        // something went wrong
+      });
+      ```
+
+      @method catch
+      @param {Function} onRejection
+      Useful for tooling.
+      @return {Promise}
+    */
+      'catch': function(onRejection) {
+        return this.then(null, onRejection);
+      }
+    };
+
+    var $$es6$promise$polyfill$$default = function polyfill() {
+      var local;
+
+      if (typeof global !== 'undefined') {
+        local = global;
+      } else if (typeof window !== 'undefined' && window.document) {
+        local = window;
+      } else {
+        local = self;
+      }
+
+      var es6PromiseSupport =
+        "Promise" in local &&
+        // Some of these methods are missing from
+        // Firefox/Chrome experimental implementations
+        "resolve" in local.Promise &&
+        "reject" in local.Promise &&
+        "all" in local.Promise &&
+        "race" in local.Promise &&
+        // Older version of the spec had a resolver object
+        // as the arg rather than a function
+        (function() {
+          var resolve;
+          new local.Promise(function(r) { resolve = r; });
+          return $$utils$$isFunction(resolve);
+        }());
+
+      if (!es6PromiseSupport) {
+        local.Promise = $$es6$promise$promise$$default;
+      }
+    };
+
+    var es6$promise$umd$$ES6Promise = {
+      'Promise': $$es6$promise$promise$$default,
+      'polyfill': $$es6$promise$polyfill$$default
+    };
+
+    /* global define:true module:true window: true */
+    if (typeof define === 'function' && define['amd']) {
+      define(function() { return es6$promise$umd$$ES6Promise; });
+    } else if (typeof module !== 'undefined' && module['exports']) {
+      module['exports'] = es6$promise$umd$$ES6Promise;
+    } else if (typeof this !== 'undefined') {
+      this['ES6Promise'] = es6$promise$umd$$ES6Promise;
+    }
+}).call(this);
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"_process":7}],4:[function(require,module,exports){
 // Ignore module for browserify (see package.json)
 },{}],5:[function(require,module,exports){
-(function (process,global){
+(function (process,global,__dirname){
 /**
  * A JavaScript implementation of the JSON-LD API.
  *
  * @author Dave Longley
  *
- * BSD 3-Clause License
- * Copyright (c) 2011-2014 Digital Bazaar, Inc.
+ * @license BSD 3-Clause License
+ * Copyright (c) 2011-2015 Digital Bazaar, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1582,6 +2604,14 @@ jsonld.compact = function(input, ctx, options, callback) {
   }
   if(!('documentLoader' in options)) {
     options.documentLoader = jsonld.loadDocument;
+  }
+  if(!('link' in options)) {
+    options.link = false;
+  }
+  if(options.link) {
+    // force skip expansion when linking, "link" is not part of the public
+    // API, it should only be called from framing
+    options.skipExpansion = true;
   }
 
   var expand = function(input, options, callback) {
@@ -1905,8 +2935,8 @@ jsonld.flatten = function(input, ctx, options, callback) {
  * @param [options] the framing options.
  *          [base] the base IRI to use.
  *          [expandContext] a context to expand with.
- *          [embed] default @embed flag: '@once', '@always', '@never'
- *            (default: 'once').
+ *          [embed] default @embed flag: '@last', '@always', '@never', '@link'
+ *            (default: '@last').
  *          [explicit] default @explicit flag (default: false).
  *          [requireAll] default @requireAll flag (default: true).
  *          [omitDefault] default @omitDefault flag (default: false).
@@ -1935,7 +2965,7 @@ jsonld.frame = function(input, frame, options, callback) {
     options.documentLoader = jsonld.loadDocument;
   }
   if(!('embed' in options)) {
-    options.embed = 'once';
+    options.embed = '@last';
   }
   options.explicit = options.explicit || false;
   if(!('requireAll' in options)) {
@@ -2029,9 +3059,11 @@ jsonld.frame = function(input, frame, options, callback) {
           return callback(ex);
         }
 
-        // compact result (force @graph option to true, skip expansion)
+        // compact result (force @graph option to true, skip expansion,
+        // check for linked embeds)
         opts.graph = true;
         opts.skipExpansion = true;
+        opts.link = {};
         jsonld.compact(framed, ctx, opts, function(err, compacted, ctx) {
           if(err) {
             return callback(new JsonLdError(
@@ -2041,6 +3073,7 @@ jsonld.frame = function(input, frame, options, callback) {
           // get graph alias
           var graph = _compactIri(ctx, '@graph');
           // remove @preserve from results
+          opts.link = {};
           compacted[graph] = _removePreserve(ctx, compacted[graph], opts);
           callback(null, compacted);
         });
@@ -2052,18 +3085,41 @@ jsonld.frame = function(input, frame, options, callback) {
 /**
  * **Experimental**
  *
- * Performs JSON-LD objectification.
+ * Links a JSON-LD document's nodes in memory.
  *
- * @param input the JSON-LD input to objectify.
+ * @param input the JSON-LD document to link.
  * @param ctx the JSON-LD context to apply.
- * @param [options] the framing options.
+ * @param [options] the options to use:
  *          [base] the base IRI to use.
  *          [expandContext] a context to expand with.
  *          [documentLoader(url, callback(err, remoteDoc))] the document loader.
- * @param callback(err, objectified) called once the operation completes.
+ * @param callback(err, linked) called once the operation completes.
+ */
+jsonld.link = function(input, ctx, options, callback) {
+  // API matches running frame with a wildcard frame and embed: '@link'
+  // get arguments
+  var frame = {};
+  if(ctx) {
+    frame['@context'] = ctx;
+  }
+  frame['@embed'] = '@link';
+  jsonld.frame(input, frame, options, callback);
+};
+
+/**
+ * **Deprecated**
+ *
+ * Performs JSON-LD objectification.
+ *
+ * @param input the JSON-LD document to objectify.
+ * @param ctx the JSON-LD context to apply.
+ * @param [options] the options to use:
+ *          [base] the base IRI to use.
+ *          [expandContext] a context to expand with.
+ *          [documentLoader(url, callback(err, remoteDoc))] the document loader.
+ * @param callback(err, linked) called once the operation completes.
  */
 jsonld.objectify = function(input, ctx, options, callback) {
-  // get arguments
   if(typeof options === 'function') {
     callback = options;
     options = {};
@@ -2082,8 +3138,8 @@ jsonld.objectify = function(input, ctx, options, callback) {
   jsonld.expand(input, options, function(err, _input) {
     if(err) {
       return callback(new JsonLdError(
-        'Could not expand input before framing.',
-        'jsonld.FrameError', {cause: err}));
+        'Could not expand input before linking.',
+        'jsonld.LinkError', {cause: err}));
     }
 
     var flattened;
@@ -2100,14 +3156,11 @@ jsonld.objectify = function(input, ctx, options, callback) {
     jsonld.compact(flattened, ctx, options, function(err, compacted, ctx) {
       if(err) {
         return callback(new JsonLdError(
-          'Could not compact flattened output.',
-          'jsonld.FrameError', {cause: err}));
+          'Could not compact flattened output before linking.',
+          'jsonld.LinkError', {cause: err}));
       }
       // get graph alias
       var graph = _compactIri(ctx, '@graph');
-      // remove @preserve from results (named graphs?)
-      compacted[graph] = _removePreserve(ctx, compacted[graph], options);
-
       var top = compacted[graph][0];
 
       var recurse = function(subject) {
@@ -2165,7 +3218,7 @@ jsonld.objectify = function(input, ctx, options, callback) {
         if(!_isArray(types)) {
           types = [types];
         }
-        for(var t in types) {
+        for(var t = 0; t < types.length; ++t) {
           if(!(types[t] in compacted.of_type)) {
             compacted.of_type[types[t]] = [];
           }
@@ -2178,13 +3231,19 @@ jsonld.objectify = function(input, ctx, options, callback) {
 };
 
 /**
- * Performs RDF dataset normalization on the given JSON-LD input. The output
- * is an RDF dataset unless the 'format' option is used.
+ * Performs RDF dataset normalization on the given input. The input is JSON-LD
+ * unless the 'inputFormat' option is used. The output is an RDF dataset
+ * unless the 'format' option is used.
  *
- * @param input the JSON-LD input to normalize.
+ * @param input the input to normalize as JSON-LD or as a format specified by
+ *          the 'inputFormat' option.
  * @param [options] the options to use:
+ *          [algorithm] the normalization algorithm to use, `URDNA2015` or
+ *            `URGNA2012` (default: `URGNA2012`).
  *          [base] the base IRI to use.
  *          [expandContext] a context to expand with.
+ *          [inputFormat] the format if input is not JSON-LD:
+ *            'application/nquads' for N-Quads.
  *          [format] the format if output is a string:
  *            'application/nquads' for N-Quads.
  *          [documentLoader(url, callback(err, remoteDoc))] the document loader.
@@ -2205,6 +3264,9 @@ jsonld.normalize = function(input, options, callback) {
   options = options || {};
 
   // set default options
+  if(!('algorithm' in options)) {
+    options.algorithm = 'URGNA2012';
+  }
   if(!('base' in options)) {
     options.base = (typeof input === 'string') ? input : '';
   }
@@ -2212,20 +3274,30 @@ jsonld.normalize = function(input, options, callback) {
     options.documentLoader = jsonld.loadDocument;
   }
 
-  // convert to RDF dataset then do normalization
-  var opts = _clone(options);
-  delete opts.format;
-  opts.produceGeneralizedRdf = false;
-  jsonld.toRDF(input, opts, function(err, dataset) {
-    if(err) {
+  if('inputFormat' in options) {
+    if(options.inputFormat !== 'application/nquads') {
       return callback(new JsonLdError(
-        'Could not convert input to RDF dataset before normalization.',
-        'jsonld.NormalizeError', {cause: err}));
+        'Unknown normalization input format.',
+        'jsonld.NormalizeError'));
     }
-
+    var parsedInput = _parseNQuads(input);
     // do normalization
-    new Processor().normalize(dataset, options, callback);
-  });
+    new Processor().normalize(parsedInput, options, callback);
+  } else {
+    // convert to RDF dataset then do normalization
+    var opts = _clone(options);
+    delete opts.format;
+    opts.produceGeneralizedRdf = false;
+    jsonld.toRDF(input, opts, function(err, dataset) {
+      if(err) {
+        return callback(new JsonLdError(
+          'Could not convert input to RDF dataset before normalization.',
+          'jsonld.NormalizeError', {cause: err}));
+      }
+      // do normalization
+      new Processor().normalize(dataset, options, callback);
+    });
+  }
 };
 
 /**
@@ -2290,13 +3362,22 @@ jsonld.fromRDF = function(dataset, options, callback) {
       };
     }
 
-    // rdf parser may be async or sync, always pass callback
-    dataset = rdfParser(dataset, function(err, dataset) {
-      if(err) {
-        return callback(err);
+    var callbackCalled = false;
+    try {
+      // rdf parser may be async or sync, always pass callback
+      dataset = rdfParser(dataset, function(err, dataset) {
+        callbackCalled = true;
+        if(err) {
+          return callback(err);
+        }
+        fromRDF(dataset, options, callback);
+      });
+    } catch(e) {
+      if(!callbackCalled) {
+        return callback(e);
       }
-      fromRDF(dataset, options, callback);
-    });
+      throw e;
+    }
     // handle synchronous or promise-based parser
     if(dataset) {
       // if dataset is actually a promise
@@ -2389,7 +3470,8 @@ jsonld.toRDF = function(input, options, callback) {
  * @param [options] the options to use:
  *          [base] the base IRI to use.
  *          [expandContext] a context to expand with.
- *          [namer] a jsonld.UniqueNamer to use to label blank nodes.
+ *          [issuer] a jsonld.IdentifierIssuer to use to label blank nodes.
+ *          [namer] (deprecated)
  *          [documentLoader(url, callback(err, remoteDoc))] the document loader.
  * @param callback(err, nodeMap) called once the operation completes.
  */
@@ -2444,7 +3526,13 @@ jsonld.createNodeMap = function(input, options, callback) {
  * @param [options] the options to use:
  *          [base] the base IRI to use.
  *          [expandContext] a context to expand with.
- *          [namer] a jsonld.UniqueNamer to use to label blank nodes.
+ *          [issuer] a jsonld.IdentifierIssuer to use to label blank nodes.
+ *          [namer] (deprecated).
+ *          [mergeNodes] true to merge properties for nodes with the same ID,
+ *            false to ignore new properties for nodes with the same ID once
+ *            the ID has been defined; note that this may not prevent merging
+ *            new properties where a node is in the `object` position
+ *            (default: true).
  *          [documentLoader(url, callback(err, remoteDoc))] the document loader.
  * @param callback(err, merged) called once the operation completes.
  */
@@ -2500,7 +3588,12 @@ jsonld.merge = function(docs, ctx, options, callback) {
   }
 
   function merge(expanded) {
-    var namer = options.namer || new UniqueNamer('_:b');
+    var mergeNodes = true;
+    if('mergeNodes' in options) {
+      mergeNodes = options.mergeNodes;
+    }
+
+    var issuer = options.namer || options.issuer || new IdentifierIssuer('_:b');
     var graphs = {'@default': {}};
 
     var defaultGraph;
@@ -2509,10 +3602,30 @@ jsonld.merge = function(docs, ctx, options, callback) {
         // uniquely relabel blank nodes
         var doc = expanded[i];
         doc = jsonld.relabelBlankNodes(doc, {
-          namer: new UniqueNamer('_:b' + i + '-')
+          issuer: new IdentifierIssuer('_:b' + i + '-')
         });
-        // add nodes to the shared node map graphs
-        _createNodeMap(doc, graphs, '@default', namer);
+
+        // add nodes to the shared node map graphs if merging nodes, to a
+        // separate graph set if not
+        var _graphs = (mergeNodes || i === 0) ? graphs : {'@default': {}};
+        _createNodeMap(doc, _graphs, '@default', issuer);
+
+        if(_graphs !== graphs) {
+          // merge document graphs but don't merge existing nodes
+          for(var graphName in _graphs) {
+            var _nodeMap = _graphs[graphName];
+            if(!(graphName in graphs)) {
+              graphs[graphName] = _nodeMap;
+              continue;
+            }
+            var nodeMap = graphs[graphName];
+            for(var key in _nodeMap) {
+              if(!(key in nodeMap)) {
+                nodeMap[key] = _nodeMap[key];
+              }
+            }
+          }
+        }
       }
 
       // add all non-default graphs to default graph
@@ -2555,12 +3668,25 @@ jsonld.merge = function(docs, ctx, options, callback) {
  *
  * @param input the JSON-LD input.
  * @param [options] the options to use:
- *          [namer] a jsonld.UniqueNamer to use.
+ *          [issuer] a jsonld.IdentifierIssuer to use to label blank nodes.
+ *          [namer] (deprecated).
  */
 jsonld.relabelBlankNodes = function(input, options) {
   options = options || {};
-  var namer = options.namer || new UniqueNamer('_:b');
-  return _labelBlankNodes(namer, input);
+  var issuer = options.namer || options.issuer || new IdentifierIssuer('_:b');
+  return _labelBlankNodes(issuer, input);
+};
+
+/**
+ * Prepends a base IRI to the given relative IRI.
+ *
+ * @param base the base IRI.
+ * @param iri the relative IRI.
+ *
+ * @return the absolute IRI.
+ */
+jsonld.prependBase = function(base, iri) {
+  return _prependBase(base, iri);
 };
 
 /**
@@ -2679,6 +3805,13 @@ jsonld.promises = function(options) {
   };
 
   if(version === 'jsonld.js') {
+    api.link = function(input, ctx) {
+      if(arguments.length < 2) {
+        throw new TypeError('Could not link, too few arguments.');
+      }
+      return promisify.apply(
+        null, [jsonld.link].concat(slice.call(arguments)));
+    };
     api.objectify = function(input) {
       return promisify.apply(
         null, [jsonld.objectify].concat(slice.call(arguments)));
@@ -2791,25 +3924,25 @@ if(_browser && typeof global.JsonLdProcessor === 'undefined') {
 /* Utility API */
 
 // define setImmediate and nextTick
-if(typeof process === 'undefined' || !process.nextTick) {
-  if(typeof setImmediate === 'function') {
-    jsonld.setImmediate = jsonld.nextTick = function(callback) {
-      return setImmediate(callback);
-    };
-  } else {
-    jsonld.setImmediate = function(callback) {
-      setTimeout(callback, 0);
-    };
-    jsonld.nextTick = jsonld.setImmediate;
-  }
-} else {
+//// nextTick implementation with browser-compatible fallback ////
+// from https://github.com/caolan/async/blob/master/lib/async.js
+
+// capture the global reference to guard against fakeTimer mocks
+var _setImmediate = typeof setImmediate === 'function' && setImmediate;
+
+var _delay = _setImmediate ? function(fn) {
+  // not a direct alias (for IE10 compatibility)
+  _setImmediate(fn);
+} : function(fn) {
+  setTimeout(fn, 0);
+};
+
+if(typeof process === 'object' && typeof process.nextTick === 'function') {
   jsonld.nextTick = process.nextTick;
-  if(typeof setImmediate === 'function') {
-    jsonld.setImmediate = setImmediate;
-  } else {
-    jsonld.setImmediate = jsonld.nextTick;
-  }
+} else {
+  jsonld.nextTick = _delay;
 }
+jsonld.setImmediate = _setImmediate ? _delay : jsonld.nextTick;
 
 /**
  * Parses a link header. The results will be key'd by the value of "rel".
@@ -2857,6 +3990,64 @@ jsonld.parseLinkHeader = function(header) {
 };
 
 /**
+ * Creates a simple queue for requesting documents.
+ */
+jsonld.RequestQueue = function() {
+  this._requests = {};
+};
+jsonld.RequestQueue.prototype.wrapLoader = function(loader) {
+  this._loader = loader;
+  this._usePromise = (loader.length === 1);
+  return this.add.bind(this);
+};
+jsonld.RequestQueue.prototype.add = function(url, callback) {
+  var self = this;
+
+  // callback must be given if not using promises
+  if(!callback && !self._usePromise) {
+    throw new Error('callback must be specified.');
+  }
+
+  // Promise-based API
+  if(self._usePromise) {
+    return new jsonld.Promise(function(resolve, reject) {
+      var load = self._requests[url];
+      if(!load) {
+        // load URL then remove from queue
+        load = self._requests[url] = self._loader(url)
+          .then(function(remoteDoc) {
+            delete self._requests[url];
+            return remoteDoc;
+          }).catch(function(err) {
+            delete self._requests[url];
+            throw err;
+          });
+      }
+      // resolve/reject promise once URL has been loaded
+      load.then(function(remoteDoc) {
+        resolve(remoteDoc);
+      }).catch(function(err) {
+        reject(err);
+      });
+    });
+  }
+
+  // callback-based API
+  if(url in self._requests) {
+    self._requests[url].push(callback);
+  } else {
+    self._requests[url] = [callback];
+    self._loader(url, function(err, remoteDoc) {
+      var callbacks = self._requests[url];
+      delete self._requests[url];
+      for(var i = 0; i < callbacks.length; ++i) {
+        callbacks[i](err, remoteDoc);
+      }
+    });
+  }
+};
+
+/**
  * Creates a simple document cache that retains documents for a short
  * period of time.
  *
@@ -2868,7 +4059,7 @@ jsonld.DocumentCache = function(size) {
   this.order = [];
   this.cache = {};
   this.size = size || 50;
-  this.expires = 30*1000;
+  this.expires = 30 * 1000;
 };
 jsonld.DocumentCache.prototype.get = function(url) {
   if(url in this.cache) {
@@ -2949,7 +4140,19 @@ jsonld.documentLoaders = {};
  */
 jsonld.documentLoaders.jquery = function($, options) {
   options = options || {};
-  var loader = function(url, callback) {
+  var queue = new jsonld.RequestQueue();
+
+  // use option or, by default, use Promise when its defined
+  var usePromise = ('usePromise' in options ?
+    options.usePromise : (typeof Promise !== 'undefined'));
+  if(usePromise) {
+    return queue.wrapLoader(function(url) {
+      return jsonld.promisify(loader, url);
+    });
+  }
+  return queue.wrapLoader(loader);
+
+  function loader(url, callback) {
     if(url.indexOf('http:') !== 0 && url.indexOf('https:') !== 0) {
       return callback(new JsonLdError(
         'URL could not be dereferenced; only "http" and "https" URLs are ' +
@@ -3006,18 +4209,7 @@ jsonld.documentLoaders.jquery = function($, options) {
           {contextUrl: null, documentUrl: url, document: null});
       }
     });
-  };
-
-  var usePromise = (typeof Promise !== 'undefined');
-  if('usePromise' in options) {
-    usePromise = options.usePromise;
   }
-  if(usePromise) {
-    return function(url) {
-      return jsonld.promisify(loader, url);
-    };
-  }
-  return loader;
 };
 
 /**
@@ -3029,6 +4221,10 @@ jsonld.documentLoaders.jquery = function($, options) {
  *            false not to (default: true).
  *          maxRedirects: the maximum number of redirects to permit, none by
  *            default.
+ *          request: the object which will make the request, default is
+ *            provided by `https://www.npmjs.com/package/request`.
+ *          headers: an array of headers which will be passed as request
+ *            headers for the requested document. Accept is not allowed.
  *          usePromise: true to use a promises API, false for a
  *            callback-continuation-style API; false by default.
  *
@@ -3038,9 +4234,28 @@ jsonld.documentLoaders.node = function(options) {
   options = options || {};
   var strictSSL = ('strictSSL' in options) ? options.strictSSL : true;
   var maxRedirects = ('maxRedirects' in options) ? options.maxRedirects : -1;
-  var request = require('request');
+  var request = ('request' in options) ? options.request : require('request');
+  var acceptHeader = 'application/ld+json, application/json';
   var http = require('http');
-  var cache = new jsonld.DocumentCache();
+  // TODO: disable cache until HTTP caching implemented
+  //var cache = new jsonld.DocumentCache();
+
+  var queue = new jsonld.RequestQueue();
+  if(options.usePromise) {
+    return queue.wrapLoader(function(url) {
+      return jsonld.promisify(loadDocument, url, []);
+    });
+  }
+  var headers = options.headers || {};
+  if('Accept' in headers || 'accept' in headers) {
+    throw new RangeError(
+      'Accept header may not be specified as an option; only "' +
+      acceptHeader + '" is supported.');
+  }
+  return queue.wrapLoader(function(url, callback) {
+    loadDocument(url, [], callback);
+  });
+
   function loadDocument(url, redirects, callback) {
     if(url.indexOf('http:') !== 0 && url.indexOf('https:') !== 0) {
       return callback(new JsonLdError(
@@ -3056,15 +4271,16 @@ jsonld.documentLoaders.node = function(options) {
         'jsonld.InvalidUrl', {code: 'loading document failed', url: url}),
         {contextUrl: null, documentUrl: url, document: null});
     }
-    var doc = cache.get(url);
+    // TODO: disable cache until HTTP caching implemented
+    var doc = null;//cache.get(url);
     if(doc !== null) {
       return callback(null, doc);
     }
+    var headers = {'Accept': acceptHeader};
+    for(var k in options.headers) { headers[k] = options.headers[k]; }
     request({
       url: url,
-      headers: {
-        'Accept': 'application/ld+json, application/json'
-      },
+      headers: headers,
       strictSSL: strictSSL,
       followRedirect: false
     }, handleResponse);
@@ -3136,24 +4352,15 @@ jsonld.documentLoaders.node = function(options) {
       }
       // cache for each redirected URL
       redirects.push(url);
-      for(var i = 0; i < redirects.length; ++i) {
+      // TODO: disable cache until HTTP caching implemented
+      /*for(var i = 0; i < redirects.length; ++i) {
         cache.set(
           redirects[i],
           {contextUrl: null, documentUrl: redirects[i], document: body});
-      }
+      }*/
       callback(err, doc);
     }
   }
-
-  var loader = function(url, callback) {
-    loadDocument(url, [], callback);
-  };
-  if(options.usePromise) {
-    return function(url) {
-      return jsonld.promisify(loader, url);
-    };
-  }
-  return loader;
 };
 
 /**
@@ -3169,9 +4376,21 @@ jsonld.documentLoaders.node = function(options) {
  * @return the XMLHttpRequest document loader.
  */
 jsonld.documentLoaders.xhr = function(options) {
-  var rlink = /(^|(\r\n))link:/i;
   options = options || {};
-  var loader = function(url, callback) {
+  var rlink = /(^|(\r\n))link:/i;
+  var queue = new jsonld.RequestQueue();
+
+  // use option or, by default, use Promise when its defined
+  var usePromise = ('usePromise' in options ?
+    options.usePromise : (typeof Promise !== 'undefined'));
+  if(usePromise) {
+    return queue.wrapLoader(function(url) {
+      return jsonld.promisify(loader, url);
+    });
+  }
+  return queue.wrapLoader(loader);
+
+  function loader(url, callback) {
     if(url.indexOf('http:') !== 0 && url.indexOf('https:') !== 0) {
       return callback(new JsonLdError(
         'URL could not be dereferenced; only "http" and "https" URLs are ' +
@@ -3188,7 +4407,7 @@ jsonld.documentLoaders.xhr = function(options) {
     }
     var xhr = options.xhr || XMLHttpRequest;
     var req = new xhr();
-    req.onload = function(e) {
+    req.onload = function() {
       if(req.status >= 400) {
         return callback(new JsonLdError(
           'URL could not be dereferenced: ' + req.statusText,
@@ -3234,18 +4453,7 @@ jsonld.documentLoaders.xhr = function(options) {
     req.open('GET', url, true);
     req.setRequestHeader('Accept', 'application/ld+json, application/json');
     req.send();
-  };
-
-  var usePromise = (typeof Promise !== 'undefined');
-  if('usePromise' in options) {
-    usePromise = options.usePromise;
   }
-  if(usePromise) {
-    return function(url) {
-      return jsonld.promisify(loader, url);
-    };
-  }
-  return loader;
 };
 
 /**
@@ -3647,6 +4855,8 @@ var JsonLdError = function(msg, type, details) {
   if(_nodejs) {
     Error.call(this);
     Error.captureStackTrace(this, this.constructor);
+  } else if(typeof Error !== 'undefined') {
+    this.stack = (new Error()).stack;
   }
   this.name = type || 'jsonld.Error';
   this.message = msg || 'An unspecified JSON-LD error occurred.';
@@ -3654,6 +4864,8 @@ var JsonLdError = function(msg, type, details) {
 };
 if(_nodejs) {
   require('util').inherits(JsonLdError, Error);
+} else if(typeof Error !== 'undefined') {
+  JsonLdError.prototype = new Error();
 }
 
 /**
@@ -3699,17 +4911,44 @@ Processor.prototype.compact = function(
 
   // recursively compact object
   if(_isObject(element)) {
+    if(options.link && '@id' in element && element['@id'] in options.link) {
+      // check for a linked element to reuse
+      var linked = options.link[element['@id']];
+      for(var i = 0; i < linked.length; ++i) {
+        if(linked[i].expanded === element) {
+          return linked[i].compacted;
+        }
+      }
+    }
+
     // do value compaction on @values and subject references
     if(_isValue(element) || _isSubjectReference(element)) {
-      return _compactValue(activeCtx, activeProperty, element);
+      var rval = _compactValue(activeCtx, activeProperty, element);
+      if(options.link && _isSubjectReference(element)) {
+        // store linked element
+        if(!(element['@id'] in options.link)) {
+          options.link[element['@id']] = [];
+        }
+        options.link[element['@id']].push({expanded: element, compacted: rval});
+      }
+      return rval;
     }
 
     // FIXME: avoid misuse of active property as an expanded property?
     var insideReverse = (activeProperty === '@reverse');
 
+    var rval = {};
+
+    if(options.link && '@id' in element) {
+      // store linked element
+      if(!(element['@id'] in options.link)) {
+        options.link[element['@id']] = [];
+      }
+      options.link[element['@id']].push({expanded: element, compacted: rval});
+    }
+
     // process element keys in order
     var keys = Object.keys(element).sort();
-    var rval = {};
     for(var ki = 0; ki < keys.length; ++ki) {
       var expandedProperty = keys[ki];
       var expandedValue = element[expandedProperty];
@@ -4045,6 +5284,10 @@ Processor.prototype.expand = function(
 
     // @language must be a string
     if(expandedProperty === '@language') {
+      if(value === null) {
+        // drop null @language values, they expand as if they didn't exist
+        continue;
+      }
       if(!_isString(value)) {
         throw new JsonLdError(
           'Invalid JSON-LD syntax; "@language" value must be a string.',
@@ -4291,7 +5534,8 @@ Processor.prototype.expand = function(
  *
  * @param input the expanded JSON-LD to create a node map of.
  * @param [options] the options to use:
- *          [namer] the UniqueNamer to use.
+ *          [issuer] a jsonld.IdentifierIssuer to use to label blank nodes.
+ *          [namer] (deprecated).
  *
  * @return the node map.
  */
@@ -4299,9 +5543,9 @@ Processor.prototype.createNodeMap = function(input, options) {
   options = options || {};
 
   // produce a map of all subjects and name each bnode
-  var namer = options.namer || new UniqueNamer('_:b');
+  var issuer = options.namer || options.issuer || new IdentifierIssuer('_:b');
   var graphs = {'@default': {}};
-  _createNodeMap(input, graphs, '@default', namer);
+  _createNodeMap(input, graphs, '@default', issuer);
 
   // add all non-default graphs to default graph
   return _mergeNodeMaps(graphs);
@@ -4343,13 +5587,15 @@ Processor.prototype.frame = function(input, frame, options) {
   // create framing state
   var state = {
     options: options,
-    graphs: {'@default': {}, '@merged': {}}
+    graphs: {'@default': {}, '@merged': {}},
+    subjectStack: [],
+    link: {}
   };
 
   // produce a map of all graphs and name each bnode
   // FIXME: currently uses subjects from @merged graph only
-  var namer = new UniqueNamer('_:b');
-  _createNodeMap(input, state.graphs, '@merged', namer);
+  var issuer = new IdentifierIssuer('_:b');
+  _createNodeMap(input, state.graphs, '@merged', issuer);
   state.subjects = state.graphs['@merged'];
 
   // frame the subjects
@@ -4366,195 +5612,14 @@ Processor.prototype.frame = function(input, frame, options) {
  * @param callback(err, normalized) called once the operation completes.
  */
 Processor.prototype.normalize = function(dataset, options, callback) {
-  // create quads and map bnodes to their associated quads
-  var quads = [];
-  var bnodes = {};
-  for(var graphName in dataset) {
-    var triples = dataset[graphName];
-    if(graphName === '@default') {
-      graphName = null;
-    }
-    for(var ti = 0; ti < triples.length; ++ti) {
-      var quad = triples[ti];
-      if(graphName !== null) {
-        if(graphName.indexOf('_:') === 0) {
-          quad.name = {type: 'blank node', value: graphName};
-        } else {
-          quad.name = {type: 'IRI', value: graphName};
-        }
-      }
-      quads.push(quad);
-
-      var attrs = ['subject', 'object', 'name'];
-      for(var ai = 0; ai < attrs.length; ++ai) {
-        var attr = attrs[ai];
-        if(quad[attr] && quad[attr].type === 'blank node') {
-          var id = quad[attr].value;
-          if(id in bnodes) {
-            bnodes[id].quads.push(quad);
-          } else {
-            bnodes[id] = {quads: [quad]};
-          }
-        }
-      }
-    }
+  if(options.algorithm === 'URDNA2015') {
+    return new URDNA2015(options).main(dataset, callback);
   }
-
-  // mapping complete, start canonical naming
-  var namer = new UniqueNamer('_:c14n');
-  return hashBlankNodes(Object.keys(bnodes));
-
-  // generates unique and duplicate hashes for bnodes
-  function hashBlankNodes(unnamed) {
-    var nextUnnamed = [];
-    var duplicates = {};
-    var unique = {};
-
-    // hash quads for each unnamed bnode
-    jsonld.setImmediate(function() {hashUnnamed(0);});
-    function hashUnnamed(i) {
-      if(i === unnamed.length) {
-        // done, name blank nodes
-        return nameBlankNodes(unique, duplicates, nextUnnamed);
-      }
-
-      // hash unnamed bnode
-      var bnode = unnamed[i];
-      var hash = _hashQuads(bnode, bnodes);
-
-      // store hash as unique or a duplicate
-      if(hash in duplicates) {
-        duplicates[hash].push(bnode);
-        nextUnnamed.push(bnode);
-      } else if(hash in unique) {
-        duplicates[hash] = [unique[hash], bnode];
-        nextUnnamed.push(unique[hash]);
-        nextUnnamed.push(bnode);
-        delete unique[hash];
-      } else {
-        unique[hash] = bnode;
-      }
-
-      // hash next unnamed bnode
-      jsonld.setImmediate(function() {hashUnnamed(i + 1);});
-    }
+  if(options.algorithm === 'URGNA2012') {
+    return new URGNA2012(options).main(dataset, callback);
   }
-
-  // names unique hash bnodes
-  function nameBlankNodes(unique, duplicates, unnamed) {
-    // name unique bnodes in sorted hash order
-    var named = false;
-    var hashes = Object.keys(unique).sort();
-    for(var i = 0; i < hashes.length; ++i) {
-      var bnode = unique[hashes[i]];
-      namer.getName(bnode);
-      named = true;
-    }
-
-    if(named) {
-      // continue to hash bnodes if a bnode was assigned a name
-      hashBlankNodes(unnamed);
-    } else {
-      // name the duplicate hash bnodes
-      nameDuplicates(duplicates);
-    }
-  }
-
-  // names duplicate hash bnodes
-  function nameDuplicates(duplicates) {
-    // enumerate duplicate hash groups in sorted order
-    var hashes = Object.keys(duplicates).sort();
-
-    // process each group
-    processGroup(0);
-    function processGroup(i) {
-      if(i === hashes.length) {
-        // done, create JSON-LD array
-        return createArray();
-      }
-
-      // name each group member
-      var group = duplicates[hashes[i]];
-      var results = [];
-      nameGroupMember(group, 0);
-      function nameGroupMember(group, n) {
-        if(n === group.length) {
-          // name bnodes in hash order
-          results.sort(function(a, b) {
-            a = a.hash;
-            b = b.hash;
-            return (a < b) ? -1 : ((a > b) ? 1 : 0);
-          });
-          for(var r in results) {
-            // name all bnodes in path namer in key-entry order
-            // Note: key-order is preserved in javascript
-            for(var key in results[r].pathNamer.existing) {
-              namer.getName(key);
-            }
-          }
-          return processGroup(i + 1);
-        }
-
-        // skip already-named bnodes
-        var bnode = group[n];
-        if(namer.isNamed(bnode)) {
-          return nameGroupMember(group, n + 1);
-        }
-
-        // hash bnode paths
-        var pathNamer = new UniqueNamer('_:b');
-        pathNamer.getName(bnode);
-        _hashPaths(bnode, bnodes, namer, pathNamer,
-          function(err, result) {
-            if(err) {
-              return callback(err);
-            }
-            results.push(result);
-            nameGroupMember(group, n + 1);
-          });
-      }
-    }
-  }
-
-  // creates the sorted array of RDF quads
-  function createArray() {
-    var normalized = [];
-
-    /* Note: At this point all bnodes in the set of RDF quads have been
-     assigned canonical names, which have been stored in the 'namer' object.
-     Here each quad is updated by assigning each of its bnodes its new name
-     via the 'namer' object. */
-
-    // update bnode names in each quad and serialize
-    for(var i = 0; i < quads.length; ++i) {
-      var quad = quads[i];
-      var attrs = ['subject', 'object', 'name'];
-      for(var ai = 0; ai < attrs.length; ++ai) {
-        var attr = attrs[ai];
-        if(quad[attr] && quad[attr].type === 'blank node' &&
-          quad[attr].value.indexOf('_:c14n') !== 0) {
-          quad[attr].value = namer.getName(quad[attr].value);
-        }
-      }
-      normalized.push(_toNQuad(quad, quad.name ? quad.name.value : null));
-    }
-
-    // sort normalized output
-    normalized.sort();
-
-    // handle output format
-    if(options.format) {
-      if(options.format === 'application/nquads') {
-        return callback(null, normalized.join(''));
-      }
-      return callback(new JsonLdError(
-        'Unknown output format.',
-        'jsonld.UnknownFormat', {format: options.format}));
-    }
-
-    // output RDF dataset
-    callback(null, _parseNQuads(normalized.join('')));
-  }
+  callback(new Error(
+    'Invalid RDF Dataset Normalization algorithm: ' + options.algorithm));
 };
 
 /**
@@ -4743,9 +5808,9 @@ Processor.prototype.fromRDF = function(dataset, options, callback) {
  */
 Processor.prototype.toRDF = function(input, options) {
   // create node map for default graph (and any named graphs)
-  var namer = new UniqueNamer('_:b');
+  var issuer = new IdentifierIssuer('_:b');
   var nodeMap = {'@default': {}};
-  _createNodeMap(input, nodeMap, '@default', namer);
+  _createNodeMap(input, nodeMap, '@default', issuer);
 
   var dataset = {};
   var graphNames = Object.keys(nodeMap).sort();
@@ -4753,7 +5818,7 @@ Processor.prototype.toRDF = function(input, options) {
     var graphName = graphNames[i];
     // skip relative IRIs
     if(graphName === '@default' || _isAbsoluteIri(graphName)) {
-      dataset[graphName] = _graphToRDF(nodeMap[graphName], namer, options);
+      dataset[graphName] = _graphToRDF(nodeMap[graphName], issuer, options);
     }
   }
   return dataset;
@@ -4917,6 +5982,10 @@ function _expandLanguageMap(languageMap) {
     }
     for(var vi = 0; vi < val.length; ++vi) {
       var item = val[vi];
+      if(item === null) {
+          // null values are allowed (8.5) but ignored (3.1)
+          continue;
+      }
       if(!_isString(item)) {
         throw new JsonLdError(
           'Invalid JSON-LD syntax; language map values must be strings.',
@@ -4933,24 +6002,24 @@ function _expandLanguageMap(languageMap) {
 }
 
 /**
- * Labels the blank nodes in the given value using the given UniqueNamer.
+ * Labels the blank nodes in the given value using the given IdentifierIssuer.
  *
- * @param namer the UniqueNamer to use.
+ * @param issuer the IdentifierIssuer to use.
  * @param element the element with blank nodes to rename.
  *
  * @return the element.
  */
-function _labelBlankNodes(namer, element) {
+function _labelBlankNodes(issuer, element) {
   if(_isArray(element)) {
     for(var i = 0; i < element.length; ++i) {
-      element[i] = _labelBlankNodes(namer, element[i]);
+      element[i] = _labelBlankNodes(issuer, element[i]);
     }
   } else if(_isList(element)) {
-    element['@list'] = _labelBlankNodes(namer, element['@list']);
+    element['@list'] = _labelBlankNodes(issuer, element['@list']);
   } else if(_isObject(element)) {
-    // rename blank node
+    // relabel blank node
     if(_isBlankNode(element)) {
-      element['@id'] = namer.getName(element['@id']);
+      element['@id'] = issuer.getId(element['@id']);
     }
 
     // recursively apply to all keys
@@ -4958,7 +6027,7 @@ function _labelBlankNodes(namer, element) {
     for(var ki = 0; ki < keys.length; ++ki) {
       var key = keys[ki];
       if(key !== '@id') {
-        element[key] = _labelBlankNodes(namer, element[key]);
+        element[key] = _labelBlankNodes(issuer, element[key]);
       }
     }
   }
@@ -5033,12 +6102,12 @@ function _expandValue(activeCtx, activeProperty, value) {
  * Creates an array of RDF triples for the given graph.
  *
  * @param graph the graph to create RDF triples for.
- * @param namer a UniqueNamer for assigning blank node names.
+ * @param issuer a IdentifierIssuer for assigning blank node names.
  * @param options the RDF serialization options.
  *
  * @return the array of RDF triples for the given graph.
  */
-function _graphToRDF(graph, namer, options) {
+function _graphToRDF(graph, issuer, options) {
   var rval = [];
 
   var ids = Object.keys(graph).sort();
@@ -5085,7 +6154,7 @@ function _graphToRDF(graph, namer, options) {
 
         // convert @list to triples
         if(_isList(item)) {
-          _listToRDF(item['@list'], namer, subject, predicate, rval);
+          _listToRDF(item['@list'], issuer, subject, predicate, rval);
         } else {
           // convert value or node object to triple
           var object = _objectToRDF(item);
@@ -5106,12 +6175,12 @@ function _graphToRDF(graph, namer, options) {
  * (an RDF collection).
  *
  * @param list the @list value.
- * @param namer a UniqueNamer for assigning blank node names.
+ * @param issuer a IdentifierIssuer for assigning blank node names.
  * @param subject the subject for the head of the list.
  * @param predicate the predicate for the head of the list.
  * @param triples the array of triples to append to.
  */
-function _listToRDF(list, namer, subject, predicate, triples) {
+function _listToRDF(list, issuer, subject, predicate, triples) {
   var first = {type: 'IRI', value: RDF_FIRST};
   var rest = {type: 'IRI', value: RDF_REST};
   var nil = {type: 'IRI', value: RDF_NIL};
@@ -5119,7 +6188,7 @@ function _listToRDF(list, namer, subject, predicate, triples) {
   for(var i = 0; i < list.length; ++i) {
     var item = list[i];
 
-    var blankNode = {type: 'blank node', value: namer.getName()};
+    var blankNode = {type: 'blank node', value: issuer.getId()};
     triples.push({subject: subject, predicate: predicate, object: blankNode});
 
     subject = blankNode;
@@ -5159,6 +6228,9 @@ function _objectToRDF(item) {
       object.value = value.toString();
       object.datatype = datatype || XSD_BOOLEAN;
     } else if(_isDouble(value) || datatype === XSD_DOUBLE) {
+      if(!_isDouble(value)) {
+        value = parseFloat(value);
+      }
       // canonical double representation
       object.value = value.toExponential(15).replace(/(\d)0*e\+?/, '$1E');
       object.datatype = datatype || XSD_DOUBLE;
@@ -5269,215 +6341,801 @@ function _compareRDFTriples(t1, t2) {
   return true;
 }
 
-/**
- * Hashes all of the quads about a blank node.
- *
- * @param id the ID of the bnode to hash quads for.
- * @param bnodes the mapping of bnodes to quads.
- *
- * @return the new hash.
- */
-function _hashQuads(id, bnodes) {
-  // return cached hash
-  if('hash' in bnodes[id]) {
-    return bnodes[id].hash;
+/////////////////////////////// DEFINE URDNA2015 //////////////////////////////
+
+var URDNA2015 = (function() {
+
+var POSITIONS = {'subject': 's', 'object': 'o', 'name': 'g'};
+
+var Normalize = function(options) {
+  options = options || {};
+  this.name = 'URDNA2015';
+  this.options = options;
+  this.blankNodeInfo = {};
+  this.hashToBlankNodes = {};
+  this.canonicalIssuer = new IdentifierIssuer('_:c14n');
+  this.quads = [];
+  this.schedule = {};
+  if('maxCallStackDepth' in options) {
+    this.schedule.MAX_DEPTH = options.maxCallStackDepth;
+  } else {
+    this.schedule.MAX_DEPTH = 500;
+  }
+  if('maxTotalCallStackDepth' in options) {
+    this.schedule.MAX_TOTAL_DEPTH = options.maxCallStackDepth;
+  } else {
+    this.schedule.MAX_TOTAL_DEPTH = 0xFFFFFFFF;
+  }
+  this.schedule.depth = 0;
+  this.schedule.totalDepth = 0;
+  if('timeSlice' in options) {
+    this.schedule.timeSlice = options.timeSlice;
+  } else {
+    // milliseconds
+    this.schedule.timeSlice = 10;
+  }
+};
+
+// do some work in a time slice, but in serial
+Normalize.prototype.doWork = function(fn, callback) {
+  var schedule = this.schedule;
+
+  if(schedule.totalDepth >= schedule.MAX_TOTAL_DEPTH) {
+    return callback(new Error(
+      'Maximum total call stack depth exceeded; normalization aborting.'));
   }
 
-  // serialize all of bnode's quads
-  var quads = bnodes[id].quads;
-  var nquads = [];
-  for(var i = 0; i < quads.length; ++i) {
-    nquads.push(_toNQuad(
-      quads[i], quads[i].name ? quads[i].name.value : null, id));
-  }
-  // sort serialized quads
-  nquads.sort();
-  // return hashed quads
-  var hash = bnodes[id].hash = sha1.hash(nquads);
-  return hash;
-}
-
-/**
- * Produces a hash for the paths of adjacent bnodes for a bnode,
- * incorporating all information about its subgraph of bnodes. This
- * method will recursively pick adjacent bnode permutations that produce the
- * lexicographically-least 'path' serializations.
- *
- * @param id the ID of the bnode to hash paths for.
- * @param bnodes the map of bnode quads.
- * @param namer the canonical bnode namer.
- * @param pathNamer the namer used to assign names to adjacent bnodes.
- * @param callback(err, result) called once the operation completes.
- */
-function _hashPaths(id, bnodes, namer, pathNamer, callback) {
-  // create SHA-1 digest
-  var md = sha1.create();
-
-  // group adjacent bnodes by hash, keep properties and references separate
-  var groups = {};
-  var groupHashes;
-  var quads = bnodes[id].quads;
-  jsonld.setImmediate(function() {groupNodes(0);});
-  function groupNodes(i) {
-    if(i === quads.length) {
-      // done, hash groups
-      groupHashes = Object.keys(groups).sort();
-      return hashGroup(0);
+  (function work() {
+    if(schedule.depth === schedule.MAX_DEPTH) {
+      // stack too deep, run on next tick
+      schedule.depth = 0;
+      schedule.running = false;
+      return jsonld.nextTick(work);
     }
 
-    // get adjacent bnode
-    var quad = quads[i];
-    var bnode = _getAdjacentBlankNodeName(quad.subject, id);
-    var direction = null;
-    if(bnode !== null) {
-      // normal property
-      direction = 'p';
-    } else {
-      bnode = _getAdjacentBlankNodeName(quad.object, id);
-      if(bnode !== null) {
-        // reverse property
-        direction = 'r';
-      }
+    // if not yet running, force run
+    var now = new Date().getTime();
+    if(!schedule.running) {
+      schedule.start = new Date().getTime();
+      schedule.deadline = schedule.start + schedule.timeSlice;
     }
 
-    if(bnode !== null) {
-      // get bnode name (try canonical, path, then hash)
-      var name;
-      if(namer.isNamed(bnode)) {
-        name = namer.getName(bnode);
-      } else if(pathNamer.isNamed(bnode)) {
-        name = pathNamer.getName(bnode);
-      } else {
-        name = _hashQuads(bnode, bnodes);
-      }
-
-      // hash direction, property, and bnode name/hash
-      var md = sha1.create();
-      md.update(direction);
-      md.update(quad.predicate.value);
-      md.update(name);
-      var groupHash = md.digest();
-
-      // add bnode to hash group
-      if(groupHash in groups) {
-        groups[groupHash].push(bnode);
-      } else {
-        groups[groupHash] = [bnode];
-      }
+    // TODO: should also include an estimate of expectedWorkTime
+    if(now < schedule.deadline) {
+      schedule.running = true;
+      schedule.depth++;
+      schedule.totalDepth++;
+      return fn(function(err, result) {
+        schedule.depth--;
+        schedule.totalDepth--;
+        callback(err, result);
+      });
     }
 
-    jsonld.setImmediate(function() {groupNodes(i + 1);});
+    // not enough time left in this slice, run after letting browser
+    // do some other things
+    schedule.depth = 0;
+    schedule.running = false;
+    jsonld.setImmediate(work);
+  })();
+};
+
+// asynchronously loop
+Normalize.prototype.forEach = function(iterable, fn, callback) {
+  var self = this;
+  var iterator;
+  var idx = 0;
+  var length;
+  if(_isArray(iterable)) {
+    length = iterable.length;
+    iterator = function() {
+      if(idx === length) {
+        return false;
+      }
+      iterator.value = iterable[idx++];
+      iterator.key = idx;
+      return true;
+    };
+  } else {
+    var keys = Object.keys(iterable);
+    length = keys.length;
+    iterator = function() {
+      if(idx === length) {
+        return false;
+      }
+      iterator.key = keys[idx++];
+      iterator.value = iterable[iterator.key];
+      return true;
+    };
   }
 
-  // hashes a group of adjacent bnodes
-  function hashGroup(i) {
-    if(i === groupHashes.length) {
-      // done, return SHA-1 digest and path namer
-      return callback(null, {hash: md.digest(), pathNamer: pathNamer});
+  (function iterate(err, result) {
+    if(err) {
+      return callback(err);
     }
+    if(iterator()) {
+      return self.doWork(function() {
+        fn(iterator.value, iterator.key, iterate);
+      });
+    }
+    callback();
+  })();
+};
 
-    // digest group hash
-    var groupHash = groupHashes[i];
-    md.update(groupHash);
+// asynchronous waterfall
+Normalize.prototype.waterfall = function(fns, callback) {
+  var self = this;
+  self.forEach(fns, function(fn, idx, callback) {
+    self.doWork(fn, callback);
+  }, callback);
+};
 
-    // choose a path and namer from the permutations
-    var chosenPath = null;
-    var chosenNamer = null;
-    var permutator = new Permutator(groups[groupHash]);
-    jsonld.setImmediate(function() {permutate();});
-    function permutate() {
-      var permutation = permutator.next();
-      var pathNamerCopy = pathNamer.clone();
+// asynchronous while
+Normalize.prototype.whilst = function(condition, fn, callback) {
+  var self = this;
+  (function loop(err) {
+    if(err) {
+      return callback(err);
+    }
+    if(!condition()) {
+      return callback();
+    }
+    self.doWork(fn, loop);
+  })();
+};
 
-      // build adjacent path
-      var path = '';
-      var recurse = [];
-      for(var n in permutation) {
-        var bnode = permutation[n];
+// 4.4) Normalization Algorithm
+Normalize.prototype.main = function(dataset, callback) {
+  var self = this;
+  self.schedule.start = new Date().getTime();
+  var result;
 
-        // use canonical name if available
-        if(namer.isNamed(bnode)) {
-          path += namer.getName(bnode);
-        } else {
-          // recurse if bnode isn't named in the path yet
-          if(!pathNamerCopy.isNamed(bnode)) {
-            recurse.push(bnode);
+  // handle invalid output format
+  if(self.options.format) {
+    if(self.options.format !== 'application/nquads') {
+      return callback(new JsonLdError(
+        'Unknown output format.',
+        'jsonld.UnknownFormat', {format: self.options.format}));
+    }
+  }
+
+  // 1) Create the normalization state.
+
+  // Note: Optimize by generating non-normalized blank node map concurrently.
+  var nonNormalized = {};
+
+  self.waterfall([
+    function(callback) {
+      // 2) For every quad in input dataset:
+      self.forEach(dataset, function(triples, graphName, callback) {
+        if(graphName === '@default') {
+          graphName = null;
+        }
+        self.forEach(triples, function(quad, idx, callback) {
+          if(graphName !== null) {
+            if(graphName.indexOf('_:') === 0) {
+              quad.name = {type: 'blank node', value: graphName};
+            } else {
+              quad.name = {type: 'IRI', value: graphName};
+            }
           }
-          path += pathNamerCopy.getName(bnode);
-        }
+          self.quads.push(quad);
 
-        // skip permutation if path is already >= chosen path
-        if(chosenPath !== null && path.length >= chosenPath.length &&
-          path > chosenPath) {
-          return nextPermutation(true);
-        }
-      }
-
-      // does the next recursion
-      nextRecursion(0);
-      function nextRecursion(n) {
-        if(n === recurse.length) {
-          // done, do next permutation
-          return nextPermutation(false);
-        }
-
-        // do recursion
-        var bnode = recurse[n];
-        _hashPaths(bnode, bnodes, namer, pathNamerCopy,
-          function(err, result) {
-            if(err) {
-              return callback(err);
+          // 2.1) For each blank node that occurs in the quad, add a reference
+          // to the quad using the blank node identifier in the blank node to
+          // quads map, creating a new entry if necessary.
+          self.forEachComponent(quad, function(component) {
+            if(component.type !== 'blank node') {
+              return;
             }
-            path += pathNamerCopy.getName(bnode) + '<' + result.hash + '>';
-            pathNamerCopy = result.pathNamer;
-
-            // skip permutation if path is already >= chosen path
-            if(chosenPath !== null && path.length >= chosenPath.length &&
-              path > chosenPath) {
-              return nextPermutation(true);
+            var id = component.value;
+            if(id in self.blankNodeInfo) {
+              self.blankNodeInfo[id].quads.push(quad);
+            } else {
+              nonNormalized[id] = true;
+              self.blankNodeInfo[id] = {quads: [quad]};
             }
-
-            // do next recursion
-            nextRecursion(n + 1);
           });
-      }
+          callback();
+        }, callback);
+      }, callback);
+    },
+    function(callback) {
+      // 3) Create a list of non-normalized blank node identifiers
+      // non-normalized identifiers and populate it using the keys from the
+      // blank node to quads map.
+      // Note: We use a map here and it was generated during step 2.
 
-      // stores the results of this permutation and runs the next
-      function nextPermutation(skipped) {
-        if(!skipped && (chosenPath === null || path < chosenPath)) {
-          chosenPath = path;
-          chosenNamer = pathNamerCopy;
+      // 4) Initialize simple, a boolean flag, to true.
+      var simple = true;
+
+      // 5) While simple is true, issue canonical identifiers for blank nodes:
+      self.whilst(function() { return simple; }, function(callback) {
+        // 5.1) Set simple to false.
+        simple = false;
+
+        // 5.2) Clear hash to blank nodes map.
+        self.hashToBlankNodes = {};
+
+        self.waterfall([
+          function(callback) {
+            // 5.3) For each blank node identifier identifier in non-normalized
+            // identifiers:
+            self.forEach(nonNormalized, function(value, id, callback) {
+              // 5.3.1) Create a hash, hash, according to the Hash First Degree
+              // Quads algorithm.
+              self.hashFirstDegreeQuads(id, function(err, hash) {
+                if(err) {
+                  return callback(err);
+                }
+                // 5.3.2) Add hash and identifier to hash to blank nodes map,
+                // creating a new entry if necessary.
+                if(hash in self.hashToBlankNodes) {
+                  self.hashToBlankNodes[hash].push(id);
+                } else {
+                  self.hashToBlankNodes[hash] = [id];
+                }
+                callback();
+              });
+            }, callback);
+          },
+          function(callback) {
+            // 5.4) For each hash to identifier list mapping in hash to blank
+            // nodes map, lexicographically-sorted by hash:
+            var hashes = Object.keys(self.hashToBlankNodes).sort();
+            self.forEach(hashes, function(hash, i, callback) {
+              // 5.4.1) If the length of identifier list is greater than 1,
+              // continue to the next mapping.
+              var idList = self.hashToBlankNodes[hash];
+              if(idList.length > 1) {
+                return callback();
+              }
+
+              // 5.4.2) Use the Issue Identifier algorithm, passing canonical
+              // issuer and the single blank node identifier in identifier
+              // list, identifier, to issue a canonical replacement identifier
+              // for identifier.
+              // TODO: consider changing `getId` to `issue`
+              var id = idList[0];
+              self.canonicalIssuer.getId(id);
+
+              // 5.4.3) Remove identifier from non-normalized identifiers.
+              delete nonNormalized[id];
+
+              // 5.4.4) Remove hash from the hash to blank nodes map.
+              delete self.hashToBlankNodes[hash];
+
+              // 5.4.5) Set simple to true.
+              simple = true;
+              callback();
+            }, callback);
+          }
+        ], callback);
+      }, callback);
+    },
+    function(callback) {
+      // 6) For each hash to identifier list mapping in hash to blank nodes map,
+      // lexicographically-sorted by hash:
+      var hashes = Object.keys(self.hashToBlankNodes).sort();
+      self.forEach(hashes, function(hash, idx, callback) {
+        // 6.1) Create hash path list where each item will be a result of
+        // running the Hash N-Degree Quads algorithm.
+        var hashPathList = [];
+
+        // 6.2) For each blank node identifier identifier in identifier list:
+        var idList = self.hashToBlankNodes[hash];
+        self.waterfall([
+          function(callback) {
+            self.forEach(idList, function(id, idx, callback) {
+              // 6.2.1) If a canonical identifier has already been issued for
+              // identifier, continue to the next identifier.
+              if(self.canonicalIssuer.hasId(id)) {
+                return callback();
+              }
+
+              // 6.2.2) Create temporary issuer, an identifier issuer
+              // initialized with the prefix _:b.
+              var issuer = new IdentifierIssuer('_:b');
+
+              // 6.2.3) Use the Issue Identifier algorithm, passing temporary
+              // issuer and identifier, to issue a new temporary blank node
+              // identifier for identifier.
+              issuer.getId(id);
+
+              // 6.2.4) Run the Hash N-Degree Quads algorithm, passing
+              // temporary issuer, and append the result to the hash path list.
+              self.hashNDegreeQuads(id, issuer, function(err, result) {
+                if(err) {
+                  return callback(err);
+                }
+                hashPathList.push(result);
+                callback();
+              });
+            }, callback);
+          },
+          function(callback) {
+            // 6.3) For each result in the hash path list,
+            // lexicographically-sorted by the hash in result:
+            hashPathList.sort(function(a, b) {
+              return (a.hash < b.hash) ? -1 : ((a.hash > b.hash) ? 1 : 0);
+            });
+            self.forEach(hashPathList, function(result, idx, callback) {
+              // 6.3.1) For each blank node identifier, existing identifier,
+              // that was issued a temporary identifier by identifier issuer
+              // in result, issue a canonical identifier, in the same order,
+              // using the Issue Identifier algorithm, passing canonical
+              // issuer and existing identifier.
+              for(var existing in result.issuer.existing) {
+                self.canonicalIssuer.getId(existing);
+              }
+              callback();
+            }, callback);
+          }
+        ], callback);
+      }, callback);
+    }, function(callback) {
+      /* Note: At this point all blank nodes in the set of RDF quads have been
+      assigned canonical identifiers, which have been stored in the canonical
+      issuer. Here each quad is updated by assigning each of its blank nodes
+      its new identifier. */
+
+      // 7) For each quad, quad, in input dataset:
+      var normalized = [];
+      self.waterfall([
+        function(callback) {
+          self.forEach(self.quads, function(quad, idx, callback) {
+            // 7.1) Create a copy, quad copy, of quad and replace any existing
+            // blank node identifiers using the canonical identifiers
+            // previously issued by canonical issuer.
+            // Note: We optimize away the copy here.
+            self.forEachComponent(quad, function(component) {
+              if(component.type === 'blank node' &&
+                component.value.indexOf(self.canonicalIssuer.prefix) !== 0) {
+                component.value = self.canonicalIssuer.getId(component.value);
+              }
+            });
+            // 7.2) Add quad copy to the normalized dataset.
+            normalized.push(_toNQuad(quad));
+            callback();
+          }, callback);
+        },
+        function(callback) {
+          // sort normalized output
+          normalized.sort();
+
+          // 8) Return the normalized dataset.
+          if(self.options.format === 'application/nquads') {
+            result = normalized.join('');
+            return callback();
+          }
+
+          result = _parseNQuads(normalized.join(''));
+          callback();
         }
-
-        // do next permutation
-        if(permutator.hasNext()) {
-          jsonld.setImmediate(function() {permutate();});
-        } else {
-          // digest chosen path and update namer
-          md.update(chosenPath);
-          pathNamer = chosenNamer;
-
-          // hash the next group
-          hashGroup(i + 1);
-        }
-      }
+      ], callback);
     }
-  }
-}
+  ], function(err) {
+    callback(err, result);
+  });
+};
 
-/**
- * A helper function that gets the blank node name from an RDF quad node
- * (subject or object). If the node is a blank node and its value
- * does not match the given blank node ID, it will be returned.
- *
- * @param node the RDF quad node.
- * @param id the ID of the blank node to look next to.
- *
- * @return the adjacent blank node name or null if none was found.
- */
-function _getAdjacentBlankNodeName(node, id) {
-  return (node.type === 'blank node' && node.value !== id ? node.value : null);
-}
+// 4.6) Hash First Degree Quads
+Normalize.prototype.hashFirstDegreeQuads = function(id, callback) {
+  var self = this;
+
+  // return cached hash
+  var info = self.blankNodeInfo[id];
+  if('hash' in info) {
+    return callback(null, info.hash);
+  }
+
+  // 1) Initialize nquads to an empty list. It will be used to store quads in
+  // N-Quads format.
+  var nquads = [];
+
+  // 2) Get the list of quads quads associated with the reference blank node
+  // identifier in the blank node to quads map.
+  var quads = info.quads;
+
+  // 3) For each quad quad in quads:
+  self.forEach(quads, function(quad, idx, callback) {
+    // 3.1) Serialize the quad in N-Quads format with the following special
+    // rule:
+
+    // 3.1.1) If any component in quad is an blank node, then serialize it
+    // using a special identifier as follows:
+    var copy = {predicate: quad.predicate};
+    self.forEachComponent(quad, function(component, key) {
+      // 3.1.2) If the blank node's existing blank node identifier matches the
+      // reference blank node identifier then use the blank node identifier _:a,
+      // otherwise, use the blank node identifier _:z.
+      copy[key] = self.modifyFirstDegreeComponent(id, component, key);
+    });
+    nquads.push(_toNQuad(copy));
+    callback();
+  }, function(err) {
+    if(err) {
+      return callback(err);
+    }
+    // 4) Sort nquads in lexicographical order.
+    nquads.sort();
+
+    // 5) Return the hash that results from passing the sorted, joined nquads
+    // through the hash algorithm.
+    info.hash = NormalizeHash.hashNQuads(self.name, nquads);
+    callback(null, info.hash);
+  });
+};
+
+// helper for modifying component during Hash First Degree Quads
+Normalize.prototype.modifyFirstDegreeComponent = function(id, component) {
+  if(component.type !== 'blank node') {
+    return component;
+  }
+  component = _clone(component);
+  component.value = (component.value === id ? '_:a' : '_:z');
+  return component;
+};
+
+// 4.7) Hash Related Blank Node
+Normalize.prototype.hashRelatedBlankNode = function(
+  related, quad, issuer, position, callback) {
+  var self = this;
+
+  // 1) Set the identifier to use for related, preferring first the canonical
+  // identifier for related if issued, second the identifier issued by issuer
+  // if issued, and last, if necessary, the result of the Hash First Degree
+  // Quads algorithm, passing related.
+  var id;
+  self.waterfall([
+    function(callback) {
+      if(self.canonicalIssuer.hasId(related)) {
+        id = self.canonicalIssuer.getId(related);
+        return callback();
+      }
+      if(issuer.hasId(related)) {
+        id = issuer.getId(related);
+        return callback();
+      }
+      self.hashFirstDegreeQuads(related, function(err, hash) {
+        if(err) {
+          return callback(err);
+        }
+        id = hash;
+        callback();
+      });
+    }
+  ], function(err) {
+    if(err) {
+      return callback(err);
+    }
+
+    // 2) Initialize a string input to the value of position.
+    // Note: We use a hash object instead.
+    var md = new NormalizeHash(self.name);
+    md.update(position);
+
+    // 3) If position is not g, append <, the value of the predicate in quad,
+    // and > to input.
+    if(position !== 'g') {
+      md.update(self.getRelatedPredicate(quad));
+    }
+
+    // 4) Append identifier to input.
+    md.update(id);
+
+    // 5) Return the hash that results from passing input through the hash
+    // algorithm.
+    return callback(null, md.digest());
+  });
+};
+
+// helper for getting a related predicate
+Normalize.prototype.getRelatedPredicate = function(quad) {
+  return '<' + quad.predicate.value + '>';
+};
+
+// 4.8) Hash N-Degree Quads
+Normalize.prototype.hashNDegreeQuads = function(id, issuer, callback) {
+  var self = this;
+
+  // 1) Create a hash to related blank nodes map for storing hashes that
+  // identify related blank nodes.
+  // Note: 2) and 3) handled within `createHashToRelated`
+  var hashToRelated;
+  var md = new NormalizeHash(self.name);
+  self.waterfall([
+    function(callback) {
+      self.createHashToRelated(id, issuer, function(err, result) {
+        if(err) {
+          return callback(err);
+        }
+        hashToRelated = result;
+        callback();
+      });
+    },
+    function(callback) {
+      // 4) Create an empty string, data to hash.
+      // Note: We created a hash object `md` above instead.
+
+      // 5) For each related hash to blank node list mapping in hash to related
+      // blank nodes map, sorted lexicographically by related hash:
+      var hashes = Object.keys(hashToRelated).sort();
+      self.forEach(hashes, function(hash, idx, callback) {
+        // 5.1) Append the related hash to the data to hash.
+        md.update(hash);
+
+        // 5.2) Create a string chosen path.
+        var chosenPath = '';
+
+        // 5.3) Create an unset chosen issuer variable.
+        var chosenIssuer;
+
+        // 5.4) For each permutation of blank node list:
+        var permutator = new Permutator(hashToRelated[hash]);
+        self.whilst(
+          function() { return permutator.hasNext(); },
+          function(nextPermutation) {
+          var permutation = permutator.next();
+
+          // 5.4.1) Create a copy of issuer, issuer copy.
+          var issuerCopy = issuer.clone();
+
+          // 5.4.2) Create a string path.
+          var path = '';
+
+          // 5.4.3) Create a recursion list, to store blank node identifiers
+          // that must be recursively processed by this algorithm.
+          var recursionList = [];
+
+          self.waterfall([
+            function(callback) {
+              // 5.4.4) For each related in permutation:
+              self.forEach(permutation, function(related, idx, callback) {
+                // 5.4.4.1) If a canonical identifier has been issued for
+                // related, append it to path.
+                if(self.canonicalIssuer.hasId(related)) {
+                  path += self.canonicalIssuer.getId(related);
+                } else {
+                  // 5.4.4.2) Otherwise:
+                  // 5.4.4.2.1) If issuer copy has not issued an identifier for
+                  // related, append related to recursion list.
+                  if(!issuerCopy.hasId(related)) {
+                    recursionList.push(related);
+                  }
+                  // 5.4.4.2.2) Use the Issue Identifier algorithm, passing
+                  // issuer copy and related and append the result to path.
+                  path += issuerCopy.getId(related);
+                }
+
+                // 5.4.4.3) If chosen path is not empty and the length of path
+                // is greater than or equal to the length of chosen path and
+                // path is lexicographically greater than chosen path, then
+                // skip to the next permutation.
+                if(chosenPath.length !== 0 &&
+                  path.length >= chosenPath.length && path > chosenPath) {
+                  // FIXME: may cause inaccurate total depth calculation
+                  return nextPermutation();
+                }
+                callback();
+              }, callback);
+            },
+            function(callback) {
+              // 5.4.5) For each related in recursion list:
+              self.forEach(recursionList, function(related, idx, callback) {
+                // 5.4.5.1) Set result to the result of recursively executing
+                // the Hash N-Degree Quads algorithm, passing related for
+                // identifier and issuer copy for path identifier issuer.
+                self.hashNDegreeQuads(
+                  related, issuerCopy, function(err, result) {
+                  if(err) {
+                    return callback(err);
+                  }
+
+                  // 5.4.5.2) Use the Issue Identifier algorithm, passing issuer
+                  // copy and related and append the result to path.
+                  path += issuerCopy.getId(related);
+
+                  // 5.4.5.3) Append <, the hash in result, and > to path.
+                  path += '<' + result.hash + '>';
+
+                  // 5.4.5.4) Set issuer copy to the identifier issuer in
+                  // result.
+                  issuerCopy = result.issuer;
+
+                  // 5.4.5.5) If chosen path is not empty and the length of path
+                  // is greater than or equal to the length of chosen path and
+                  // path is lexicographically greater than chosen path, then
+                  // skip to the next permutation.
+                  if(chosenPath.length !== 0 &&
+                    path.length >= chosenPath.length && path > chosenPath) {
+                    // FIXME: may cause inaccurate total depth calculation
+                    return nextPermutation();
+                  }
+                  callback();
+                });
+              }, callback);
+            },
+            function(callback) {
+              // 5.4.6) If chosen path is empty or path is lexicographically
+              // less than chosen path, set chosen path to path and chosen
+              // issuer to issuer copy.
+              if(chosenPath.length === 0 || path < chosenPath) {
+                chosenPath = path;
+                chosenIssuer = issuerCopy;
+              }
+              callback();
+            }
+          ], nextPermutation);
+        }, function(err) {
+          if(err) {
+            return callback(err);
+          }
+
+          // 5.5) Append chosen path to data to hash.
+          md.update(chosenPath);
+
+          // 5.6) Replace issuer, by reference, with chosen issuer.
+          issuer = chosenIssuer;
+          callback();
+        });
+      }, callback);
+    }
+  ], function(err) {
+    // 6) Return issuer and the hash that results from passing data to hash
+    // through the hash algorithm.
+    callback(err, {hash: md.digest(), issuer: issuer});
+  });
+};
+
+// helper for creating hash to related blank nodes map
+Normalize.prototype.createHashToRelated = function(id, issuer, callback) {
+  var self = this;
+
+  // 1) Create a hash to related blank nodes map for storing hashes that
+  // identify related blank nodes.
+  var hashToRelated = {};
+
+  // 2) Get a reference, quads, to the list of quads in the blank node to
+  // quads map for the key identifier.
+  var quads = self.blankNodeInfo[id].quads;
+
+  // 3) For each quad in quads:
+  self.forEach(quads, function(quad, idx, callback) {
+    // 3.1) For each component in quad, if component is the subject, object,
+    // and graph name and it is a blank node that is not identified by
+    // identifier:
+    self.forEach(quad, function(component, key, callback) {
+      if(key === 'predicate' ||
+        !(component.type === 'blank node' && component.value !== id)) {
+        return callback();
+      }
+      // 3.1.1) Set hash to the result of the Hash Related Blank Node
+      // algorithm, passing the blank node identifier for component as
+      // related, quad, path identifier issuer as issuer, and position as
+      // either s, o, or g based on whether component is a subject, object,
+      // graph name, respectively.
+      var related = component.value;
+      var position = POSITIONS[key];
+      self.hashRelatedBlankNode(
+        related, quad, issuer, position, function(err, hash) {
+        if(err) {
+          return callback(err);
+        }
+        // 3.1.2) Add a mapping of hash to the blank node identifier for
+        // component to hash to related blank nodes map, adding an entry as
+        // necessary.
+        if(hash in hashToRelated) {
+          hashToRelated[hash].push(related);
+        } else {
+          hashToRelated[hash] = [related];
+        }
+        callback();
+      });
+    }, callback);
+  }, function(err) {
+    callback(err, hashToRelated);
+  });
+};
+
+// helper that iterates over quad components (skips predicate)
+Normalize.prototype.forEachComponent = function(quad, op) {
+  for(var key in quad) {
+    // skip `predicate`
+    if(key === 'predicate') {
+      continue;
+    }
+    op(quad[key], key, quad);
+  }
+};
+
+return Normalize;
+
+})(); // end of define URDNA2015
+
+/////////////////////////////// DEFINE URGNA2012 //////////////////////////////
+
+var URGNA2012 = (function() {
+
+var Normalize = function(options) {
+  URDNA2015.call(this, options);
+  this.name = 'URGNA2012';
+};
+Normalize.prototype = new URDNA2015();
+
+// helper for modifying component during Hash First Degree Quads
+Normalize.prototype.modifyFirstDegreeComponent = function(id, component, key) {
+  if(component.type !== 'blank node') {
+    return component;
+  }
+  component = _clone(component);
+  if(key === 'name') {
+    component.value = '_:g';
+  } else {
+    component.value = (component.value === id ? '_:a' : '_:z');
+  }
+  return component;
+};
+
+// helper for getting a related predicate
+Normalize.prototype.getRelatedPredicate = function(quad) {
+  return quad.predicate.value;
+};
+
+// helper for creating hash to related blank nodes map
+Normalize.prototype.createHashToRelated = function(id, issuer, callback) {
+  var self = this;
+
+  // 1) Create a hash to related blank nodes map for storing hashes that
+  // identify related blank nodes.
+  var hashToRelated = {};
+
+  // 2) Get a reference, quads, to the list of quads in the blank node to
+  // quads map for the key identifier.
+  var quads = self.blankNodeInfo[id].quads;
+
+  // 3) For each quad in quads:
+  self.forEach(quads, function(quad, idx, callback) {
+    // 3.1) If the quad's subject is a blank node that does not match
+    // identifier, set hash to the result of the Hash Related Blank Node
+    // algorithm, passing the blank node identifier for subject as related,
+    // quad, path identifier issuer as issuer, and p as position.
+    var position;
+    var related;
+    if(quad.subject.type === 'blank node' && quad.subject.value !== id) {
+      related = quad.subject.value;
+      position = 'p';
+    } else if(quad.object.type === 'blank node' && quad.object.value !== id) {
+      // 3.2) Otherwise, if quad's object is a blank node that does not match
+      // identifier, to the result of the Hash Related Blank Node algorithm,
+      // passing the blank node identifier for object as related, quad, path
+      // identifier issuer as issuer, and r as position.
+      related = quad.object.value;
+      position = 'r';
+    } else {
+      // 3.3) Otherwise, continue to the next quad.
+      return callback();
+    }
+    // 3.4) Add a mapping of hash to the blank node identifier for the
+    // component that matched (subject or object) to hash to related blank
+    // nodes map, adding an entry as necessary.
+    self.hashRelatedBlankNode(
+      related, quad, issuer, position, function(err, hash) {
+      if(hash in hashToRelated) {
+        hashToRelated[hash].push(related);
+      } else {
+        hashToRelated[hash] = [related];
+      }
+      callback();
+    });
+  }, function(err) {
+    callback(err, hashToRelated);
+  });
+};
+
+return Normalize;
+
+})(); // end of define URGNA2012
 
 /**
  * Recursively flattens the subjects in the given JSON-LD expanded input
@@ -5486,15 +7144,15 @@ function _getAdjacentBlankNodeName(node, id) {
  * @param input the JSON-LD expanded input.
  * @param graphs a map of graph name to subject map.
  * @param graph the name of the current graph.
- * @param namer the blank node namer.
+ * @param issuer the blank node identifier issuer.
  * @param name the name assigned to the current input if it is a bnode.
  * @param list the list to append to, null for none.
  */
-function _createNodeMap(input, graphs, graph, namer, name, list) {
+function _createNodeMap(input, graphs, graph, issuer, name, list) {
   // recurse through array
   if(_isArray(input)) {
     for(var i = 0; i < input.length; ++i) {
-      _createNodeMap(input[i], graphs, graph, namer, undefined, list);
+      _createNodeMap(input[i], graphs, graph, issuer, undefined, list);
     }
     return;
   }
@@ -5513,7 +7171,7 @@ function _createNodeMap(input, graphs, graph, namer, name, list) {
       var type = input['@type'];
       // rename @type blank node
       if(type.indexOf('_:') === 0) {
-        input['@type'] = type = namer.getName(type);
+        input['@type'] = type = issuer.getId(type);
       }
     }
     if(list) {
@@ -5530,14 +7188,14 @@ function _createNodeMap(input, graphs, graph, namer, name, list) {
     for(var i = 0; i < types.length; ++i) {
       var type = types[i];
       if(type.indexOf('_:') === 0) {
-        namer.getName(type);
+        issuer.getId(type);
       }
     }
   }
 
   // get name for subject
   if(_isUndefined(name)) {
-    name = _isBlankNode(input) ? namer.getName(input['@id']) : input['@id'];
+    name = _isBlankNode(input) ? issuer.getId(input['@id']) : input['@id'];
   }
 
   // add subject reference to list
@@ -5568,9 +7226,9 @@ function _createNodeMap(input, graphs, graph, namer, name, list) {
           var item = items[ii];
           var itemName = item['@id'];
           if(_isBlankNode(item)) {
-            itemName = namer.getName(itemName);
+            itemName = issuer.getId(itemName);
           }
-          _createNodeMap(item, graphs, graph, namer, itemName);
+          _createNodeMap(item, graphs, graph, issuer, itemName);
           jsonld.addValue(
             subjects[itemName], reverseProperty, referencedNode,
             {propertyIsArray: true, allowDuplicate: false});
@@ -5586,13 +7244,15 @@ function _createNodeMap(input, graphs, graph, namer, name, list) {
         graphs[name] = {};
       }
       var g = (graph === '@merged') ? graph : name;
-      _createNodeMap(input[property], graphs, g, namer);
+      _createNodeMap(input[property], graphs, g, issuer);
       continue;
     }
 
     // copy non-@type keywords
     if(property !== '@type' && _isKeyword(property)) {
-      if(property === '@index' && '@index' in subject) {
+      if(property === '@index' && property in subject &&
+        (input[property] !== subject[property] ||
+        input[property]['@id'] !== subject[property]['@id'])) {
         throw new JsonLdError(
           'Invalid JSON-LD syntax; conflicting @index property detected.',
           'jsonld.SyntaxError',
@@ -5607,7 +7267,7 @@ function _createNodeMap(input, graphs, graph, namer, name, list) {
 
     // if property is a bnode, assign it a new id
     if(property.indexOf('_:') === 0) {
-      property = namer.getName(property);
+      property = issuer.getId(property);
     }
 
     // ensure property is added for empty arrays
@@ -5620,30 +7280,30 @@ function _createNodeMap(input, graphs, graph, namer, name, list) {
 
       if(property === '@type') {
         // rename @type blank nodes
-        o = (o.indexOf('_:') === 0) ? namer.getName(o) : o;
+        o = (o.indexOf('_:') === 0) ? issuer.getId(o) : o;
       }
 
       // handle embedded subject or subject reference
       if(_isSubject(o) || _isSubjectReference(o)) {
-        // rename blank node @id
-        var id = _isBlankNode(o) ? namer.getName(o['@id']) : o['@id'];
+        // relabel blank node @id
+        var id = _isBlankNode(o) ? issuer.getId(o['@id']) : o['@id'];
 
         // add reference and recurse
         jsonld.addValue(
           subject, property, {'@id': id},
           {propertyIsArray: true, allowDuplicate: false});
-        _createNodeMap(o, graphs, graph, namer, id);
+        _createNodeMap(o, graphs, graph, issuer, id);
       } else if(_isList(o)) {
         // handle @list
         var _list = [];
-        _createNodeMap(o['@list'], graphs, graph, namer, name, _list);
+        _createNodeMap(o['@list'], graphs, graph, issuer, name, _list);
         o = {'@list': _list};
         jsonld.addValue(
           subject, property, o,
           {propertyIsArray: true, allowDuplicate: false});
       } else {
         // handle @value
-        _createNodeMap(o, graphs, graph, namer, name);
+        _createNodeMap(o, graphs, graph, issuer, name);
         jsonld.addValue(
           subject, property, o, {propertyIsArray: true, allowDuplicate: false});
       }
@@ -5694,7 +7354,7 @@ function _mergeNodeMaps(graphs) {
  */
 function _frame(state, subjects, frame, parent, property) {
   // validate the frame
-  _validateFrame(state, frame);
+  _validateFrame(frame);
   frame = frame[0];
 
   // get flags for current frame
@@ -5704,68 +7364,61 @@ function _frame(state, subjects, frame, parent, property) {
     explicit: _getFrameFlag(frame, options, 'explicit'),
     requireAll: _getFrameFlag(frame, options, 'requireAll')
   };
-  var embedOn = (flags.embed !== '@never');
 
   // filter out subjects that match the frame
   var matches = _filterSubjects(state, subjects, frame, flags);
 
   // add matches to output
   var ids = Object.keys(matches).sort();
-  for(var idx in ids) {
+  for(var idx = 0; idx < ids.length; ++idx) {
     var id = ids[idx];
+    var subject = matches[id];
 
-    /* Note: In order to treat each top-level match as a compartmentalized
-    result, create an independent copy of the embedded subjects map when the
-    property is null, which only occurs at the top-level. */
-    if(property === null) {
-      state.embeds = {};
-    }
+    if(flags.embed === '@link' && id in state.link) {
+      // TODO: may want to also match an existing linked subject against
+      // the current frame ... so different frames could produce different
+      // subjects that are only shared in-memory when the frames are the same
 
-    // start output
-    var output = {};
-    output['@id'] = id;
-
-    // prepare embed meta info
-    var embed = {parent: parent, property: property};
-
-    // if embed mode is 'once' and there is an existing embed
-    if(embedOn && flags.embed === '@once' && (id in state.embeds)) {
-      // only overwrite an existing embed if it has already been added to its
-      // parent -- otherwise its parent is somewhere up the tree from this
-      // embed and the embed would occur twice once the tree is added
-      embedOn = false;
-
-      // existing embed's parent is an array
-      var existing = state.embeds[id];
-      if(_isArray(existing.parent)) {
-        for(var i = 0; i < existing.parent.length; ++i) {
-          if(jsonld.compareValues(output, existing.parent[i])) {
-            embedOn = true;
-            break;
-          }
-        }
-      } else if(jsonld.hasValue(existing.parent, existing.property, output)) {
-        // existing embed's parent is an object
-        embedOn = true;
-      }
-
-      // existing embed has already been added, so allow an overwrite
-      if(embedOn) {
-        _removeEmbed(state, id);
-      }
-    }
-
-    // not embedding, add output without any other properties
-    if(!embedOn) {
-      _addFrameOutput(state, parent, property, output);
+      // add existing linked subject
+      _addFrameOutput(parent, property, state.link[id]);
       continue;
     }
 
-    // add embed meta info
-    state.embeds[id] = embed;
+    /* Note: In order to treat each top-level match as a compartmentalized
+    result, clear the unique embedded subjects map when the property is null,
+    which only occurs at the top-level. */
+    if(property === null) {
+      state.uniqueEmbeds = {};
+    }
+
+    // start output for subject
+    var output = {};
+    output['@id'] = id;
+    state.link[id] = output;
+
+    // if embed is @never or if a circular reference would be created by an
+    // embed, the subject cannot be embedded, just add the reference;
+    // note that a circular reference won't occur when the embed flag is
+    // `@link` as the above check will short-circuit before reaching this point
+    if(flags.embed === '@never' ||
+      _createsCircularReference(subject, state.subjectStack)) {
+      _addFrameOutput(parent, property, output);
+      continue;
+    }
+
+    // if only the last match should be embedded
+    if(flags.embed === '@last') {
+      // remove any existing embed
+      if(id in state.uniqueEmbeds) {
+        _removeEmbed(state, id);
+      }
+      state.uniqueEmbeds[id] = {parent: parent, property: property};
+    }
+
+    // push matching subject onto stack to enable circular embed checks
+    state.subjectStack.push(subject);
 
     // iterate over subject properties
-    var subject = matches[id];
     var props = Object.keys(subject).sort();
     for(var i = 0; i < props.length; i++) {
       var prop = props[i];
@@ -5776,12 +7429,8 @@ function _frame(state, subjects, frame, parent, property) {
         continue;
       }
 
-      // if property isn't in the frame
-      if(!(prop in frame)) {
-        // if explicit is off, embed values
-        if(!flags.explicit) {
-          _embedValues(state, subject, prop, output);
-        }
+      // explicit is on and property isn't in the frame, skip processing
+      if(flags.explicit && !(prop in frame)) {
         continue;
       }
 
@@ -5794,35 +7443,33 @@ function _frame(state, subjects, frame, parent, property) {
         if(_isList(o)) {
           // add empty list
           var list = {'@list': []};
-          _addFrameOutput(state, output, prop, list);
+          _addFrameOutput(output, prop, list);
 
           // add list objects
           var src = o['@list'];
           for(var n in src) {
             o = src[n];
-            // only recurse if not embedding always and circular ref detected
-            if(_isSubjectReference(o) &&
-              !(flags.embed === '@always' &&
-                _createsCircularReference(id, o, state.embeds))) {
+            if(_isSubjectReference(o)) {
+              var subframe = (prop in frame ?
+                frame[prop][0]['@list'] : _createImplicitFrame(flags));
               // recurse into subject reference
-              _frame(state, [o['@id']], frame[prop][0]['@list'], list, '@list');
+              _frame(state, [o['@id']], subframe, list, '@list');
             } else {
               // include other values automatically
-              _addFrameOutput(state, list, '@list', _clone(o));
+              _addFrameOutput(list, '@list', _clone(o));
             }
           }
           continue;
         }
 
-        // only recurse if not embedding always and circular ref detected
-        if(_isSubjectReference(o) &&
-          !(flags.embed === '@always' &&
-            _createsCircularReference(id, o, state.embeds))) {
+        if(_isSubjectReference(o)) {
           // recurse into subject reference
-          _frame(state, [o['@id']], frame[prop], output, prop);
+          var subframe = (prop in frame ?
+            frame[prop] : _createImplicitFrame(flags));
+          _frame(state, [o['@id']], subframe, output, prop);
         } else {
           // include other values automatically
-          _addFrameOutput(state, output, prop, _clone(o));
+          _addFrameOutput(output, prop, _clone(o));
         }
       }
     }
@@ -5854,17 +7501,47 @@ function _frame(state, subjects, frame, parent, property) {
     }
 
     // add output to parent
-    _addFrameOutput(state, parent, property, output);
+    _addFrameOutput(parent, property, output);
+
+    // pop matching subject from circular ref-checking stack
+    state.subjectStack.pop();
   }
 }
 
-function _createsCircularReference(embedId, nodeToEmbed, idToEmbeddedNode) {
-  var reference = idToEmbeddedNode[embedId];
-  while(reference !== undefined) {
-    if(reference.parent['@id'] === nodeToEmbed['@id']) {
+/**
+ * Creates an implicit frame when recursing through subject matches. If
+ * a frame doesn't have an explicit frame for a particular property, then
+ * a wildcard child frame will be created that uses the same flags that the
+ * parent frame used.
+ *
+ * @param flags the current framing flags.
+ *
+ * @return the implicit frame.
+ */
+function _createImplicitFrame(flags) {
+  var frame = {};
+  for(var key in flags) {
+    if(flags[key] !== undefined) {
+      frame['@' + key] = [flags[key]];
+    }
+  }
+  return [frame];
+}
+
+/**
+ * Checks the current subject stack to see if embedding the given subject
+ * would cause a circular reference.
+ *
+ * @param subjectToEmbed the subject to embed.
+ * @param subjectStack the current stack of subjects.
+ *
+ * @return true if a circular reference would be created, false if not.
+ */
+function _createsCircularReference(subjectToEmbed, subjectStack) {
+  for(var i = subjectStack.length - 1; i >= 0; --i) {
+    if(subjectStack[i]['@id'] === subjectToEmbed['@id']) {
       return true;
     }
-    reference = idToEmbeddedNode[reference.parent['@id']];
   }
   return false;
 }
@@ -5882,16 +7559,16 @@ function _getFrameFlag(frame, options, name) {
   var flag = '@' + name;
   var rval = (flag in frame ? frame[flag][0] : options[name]);
   if(name === 'embed') {
-    // default is "once"
+    // default is "@last"
     // backwards-compatibility support for "embed" maps:
-    // true => "once"
-    // false => "never"
+    // true => "@last"
+    // false => "@never"
     if(rval === true) {
-      rval = '@once';
+      rval = '@last';
     } else if(rval === false) {
       rval = '@never';
-    } else if(rval !== '@always' && rval !== '@never') {
-      rval = '@once';
+    } else if(rval !== '@always' && rval !== '@never' && rval !== '@link') {
+      rval = '@last';
     }
   }
   return rval;
@@ -5900,10 +7577,9 @@ function _getFrameFlag(frame, options, name) {
 /**
  * Validates a JSON-LD frame, throwing an exception if the frame is invalid.
  *
- * @param state the current frame state.
  * @param frame the frame to validate.
  */
-function _validateFrame(state, frame) {
+function _validateFrame(frame) {
   if(!_isArray(frame) || frame.length !== 1 || !_isObject(frame[0])) {
     throw new JsonLdError(
       'Invalid JSON-LD syntax; a JSON-LD frame must be a single object.',
@@ -6003,58 +7679,6 @@ function _filterSubject(subject, frame, flags) {
 }
 
 /**
- * Embeds values for the given subject and property into the given output
- * during the framing algorithm.
- *
- * @param state the current framing state.
- * @param subject the subject.
- * @param property the property.
- * @param output the output.
- */
-function _embedValues(state, subject, property, output) {
-  // embed subject properties in output
-  var objects = subject[property];
-  for(var i = 0; i < objects.length; ++i) {
-    var o = objects[i];
-
-    // recurse into @list
-    if(_isList(o)) {
-      var list = {'@list': []};
-      _addFrameOutput(state, output, property, list);
-      return _embedValues(state, o, '@list', list['@list']);
-    }
-
-    // handle subject reference
-    if(_isSubjectReference(o)) {
-      var id = o['@id'];
-
-      // embed full subject if isn't already embedded
-      if(!(id in state.embeds)) {
-        // add embed
-        var embed = {parent: output, property: property};
-        state.embeds[id] = embed;
-
-        // recurse into subject
-        o = {};
-        var s = state.subjects[id];
-        for(var prop in s) {
-          // copy keywords
-          if(_isKeyword(prop)) {
-            o[prop] = _clone(s[prop]);
-            continue;
-          }
-          _embedValues(state, s, prop, o);
-        }
-      }
-      _addFrameOutput(state, output, property, o);
-    } else {
-      // copy non-subject value
-      _addFrameOutput(state, output, property, _clone(o));
-    }
-  }
-}
-
-/**
  * Removes an existing embed.
  *
  * @param state the current framing state.
@@ -6062,7 +7686,7 @@ function _embedValues(state, subject, property, output) {
  */
 function _removeEmbed(state, id) {
   // get existing embed
-  var embeds = state.embeds;
+  var embeds = state.uniqueEmbeds;
   var embed = embeds[id];
   var parent = embed.parent;
   var property = embed.property;
@@ -6105,12 +7729,11 @@ function _removeEmbed(state, id) {
 /**
  * Adds framing output to the given parent.
  *
- * @param state the current framing state.
  * @param parent the parent to add to.
  * @param property the parent property.
  * @param output the output to add.
  */
-function _addFrameOutput(state, parent, property, output) {
+function _addFrameOutput(parent, property, output) {
   if(_isObject(parent)) {
     jsonld.addValue(parent, property, output, {propertyIsArray: true});
   } else {
@@ -6157,6 +7780,25 @@ function _removePreserve(ctx, input, options) {
     if(_isList(input)) {
       input['@list'] = _removePreserve(ctx, input['@list'], options);
       return input;
+    }
+
+    // handle in-memory linked nodes
+    var idAlias = _compactIri(ctx, '@id');
+    if(idAlias in input) {
+      var id = input[idAlias];
+      if(id in options.link) {
+        var idx = options.link[id].indexOf(input);
+        if(idx === -1) {
+          // prevent circular visitation
+          options.link[id].push(input);
+        } else {
+          // already visited
+          return options.link[id][idx];
+        }
+      } else {
+        // prevent circular visitation
+        options.link[id] = [input];
+      }
     }
 
     // recurse through properties
@@ -6790,6 +8432,9 @@ function _expandIri(activeCtx, value, relativeTo, localCtx, defined) {
     return value;
   }
 
+  // ensure value is interpreted as a string
+  value = String(value);
+
   // define term dependency if not defined
   if(localCtx && value in localCtx && defined[value] !== true) {
     _createTermDefinition(activeCtx, localCtx, value, defined);
@@ -6845,20 +8490,12 @@ function _expandIri(activeCtx, value, relativeTo, localCtx, defined) {
   // prepend base
   var rval = value;
   if(relativeTo.base) {
-    rval = _prependBase(activeCtx['@base'], rval);
+    rval = jsonld.prependBase(activeCtx['@base'], rval);
   }
 
   return rval;
 }
 
-/**
- * Prepends a base IRI to the given relative IRI.
- *
- * @param base the base IRI.
- * @param iri the relative IRI.
- *
- * @return the absolute IRI.
- */
 function _prependBase(base, iri) {
   // skip IRI processing
   if(base === null) {
@@ -6877,46 +8514,65 @@ function _prependBase(base, iri) {
   // parse given IRI
   var rel = jsonld.url.parse(iri);
 
-  // start hierarchical part
-  var hierPart = (base.protocol || '');
-  if(rel.authority) {
-    hierPart += '//' + rel.authority;
-  } else if(base.href !== '') {
-    hierPart += '//' + base.authority;
-  }
+  // per RFC3986 5.2.2
+  var transform = {
+    protocol: base.protocol || ''
+  };
 
-  // per RFC3986 normalize
-  var path;
-
-  // IRI represents an absolute path
-  if(rel.pathname.indexOf('/') === 0) {
-    path = rel.pathname;
+  if(rel.authority !== null) {
+    transform.authority = rel.authority;
+    transform.path = rel.path;
+    transform.query = rel.query;
   } else {
-    path = base.pathname;
+    transform.authority = base.authority;
 
-    // append relative path to the end of the last directory from base
-    if(rel.pathname !== '') {
-      path = path.substr(0, path.lastIndexOf('/') + 1);
-      if(path.length > 0 && path.substr(-1) !== '/') {
-        path += '/';
+    if(rel.path === '') {
+      transform.path = base.path;
+      if(rel.query !== null) {
+        transform.query = rel.query;
+      } else {
+        transform.query = base.query;
       }
-      path += rel.pathname;
+    } else {
+      if(rel.path.indexOf('/') === 0) {
+        // IRI represents an absolute path
+        transform.path = rel.path;
+      } else {
+        // merge paths
+        var path = base.path;
+
+        // append relative path to the end of the last directory from base
+        if(rel.path !== '') {
+          path = path.substr(0, path.lastIndexOf('/') + 1);
+          if(path.length > 0 && path.substr(-1) !== '/') {
+            path += '/';
+          }
+          path += rel.path;
+        }
+
+        transform.path = path;
+      }
+      transform.query = rel.query;
     }
   }
 
   // remove slashes and dots in path
-  path = _removeDotSegments(path, hierPart !== '');
+  transform.path = _removeDotSegments(transform.path, !!transform.authority);
 
-  // add query and hash
-  if(rel.query) {
-    path += '?' + rel.query;
+  // construct URL
+  var rval = transform.protocol;
+  if(transform.authority !== null) {
+    rval += '//' + transform.authority;
   }
-  if(rel.hash) {
-    path += rel.hash;
+  rval += transform.path;
+  if(transform.query !== null) {
+    rval += '?' + transform.query;
+  }
+  if(rel.fragment !== null) {
+    rval += '#' + rel.fragment;
   }
 
-  var rval = hierPart + path;
-
+  // handle empty base
   if(rval === '') {
     rval = './';
   }
@@ -6945,7 +8601,7 @@ function _removeBase(base, iri) {
   // establish base root
   var root = '';
   if(base.href !== '') {
-    root += (base.protocol || '') + '//' + base.authority;
+    root += (base.protocol || '') + '//' + (base.authority || '');
   } else if(iri.indexOf('//')) {
     // support network-path reference with empty base
     root += '//';
@@ -6963,7 +8619,7 @@ function _removeBase(base, iri) {
   // is a hash or query)
   var baseSegments = base.normalizedPath.split('/');
   var iriSegments = rel.normalizedPath.split('/');
-  var last = (rel.hash || rel.query) ? 0 : 1;
+  var last = (rel.fragment || rel.query) ? 0 : 1;
   while(baseSegments.length > 0 && iriSegments.length > last) {
     if(baseSegments[0] !== iriSegments[0]) {
       break;
@@ -6987,13 +8643,14 @@ function _removeBase(base, iri) {
   rval += iriSegments.join('/');
 
   // add query and hash
-  if(rel.query) {
+  if(rel.query !== null) {
     rval += '?' + rel.query;
   }
-  if(rel.hash) {
-    rval += rel.hash;
+  if(rel.fragment !== null) {
+    rval += '#' + rel.fragment;
   }
 
+  // handle empty base
   if(rval === '') {
     rval = './';
   }
@@ -7466,15 +9123,15 @@ function _findContextUrls(input, urls, replace, base) {
         for(var i = 0; i < length; ++i) {
           var _ctx = ctx[i];
           if(_isString(_ctx)) {
-            _ctx = _prependBase(base, _ctx);
+            _ctx = jsonld.prependBase(base, _ctx);
             // replace w/@context if requested
             if(replace) {
               _ctx = urls[_ctx];
               if(_isArray(_ctx)) {
                 // add flattened context
                 Array.prototype.splice.apply(ctx, [i, 1].concat(_ctx));
-                i += _ctx.length;
-                length += _ctx.length;
+                i += _ctx.length - 1;
+                length = ctx.length;
               } else {
                 ctx[i] = _ctx;
               }
@@ -7486,7 +9143,7 @@ function _findContextUrls(input, urls, replace, base) {
         }
       } else if(_isString(ctx)) {
         // string @context
-        ctx = _prependBase(base, ctx);
+        ctx = jsonld.prependBase(base, ctx);
         // replace w/@context if requested
         if(replace) {
           input[key] = urls[ctx];
@@ -7672,10 +9329,11 @@ function _parseNQuads(input) {
   var datatype = '(?:\\^\\^' + iri + ')';
   var language = '(?:@([a-z]+(?:-[a-z0-9]+)*))';
   var literal = '(?:' + plain + '(?:' + datatype + '|' + language + ')?)';
+  var comment = '(?:#.*)?';
   var ws = '[ \\t]+';
   var wso = '[ \\t]*';
   var eoln = /(?:\r\n)|(?:\n)|(?:\r)/g;
-  var empty = new RegExp('^' + wso + '$');
+  var empty = new RegExp('^' + wso + comment + '$');
 
   // define quad part regexes
   var subject = '(?:' + iri + '|' + bnode + ')' + ws;
@@ -7685,7 +9343,7 @@ function _parseNQuads(input) {
 
   // full quad regex
   var quad = new RegExp(
-    '^' + wso + subject + property + object + graphName + wso + '$');
+    '^' + wso + subject + property + object + graphName + wso + comment + '$');
 
   // build RDF dataset
   var dataset = {};
@@ -7798,37 +9456,36 @@ function _toNQuads(dataset) {
       quads.push(_toNQuad(triple, graphName));
     }
   }
-  quads.sort();
-  return quads.join('');
+  return quads.sort().join('');
 }
 
 /**
  * Converts an RDF triple and graph name to an N-Quad string (a single quad).
  *
- * @param triple the RDF triple to convert.
+ * @param triple the RDF triple or quad to convert (a triple or quad may be
+ *          passed, if a triple is passed then `graphName` should be given
+ *          to specify the name of the graph the triple is in, `null` for
+ *          the default graph).
  * @param graphName the name of the graph containing the triple, null for
  *          the default graph.
- * @param bnode the bnode the quad is mapped to (optional, for use
- *          during normalization only).
  *
  * @return the N-Quad string.
  */
-function _toNQuad(triple, graphName, bnode) {
+function _toNQuad(triple, graphName) {
   var s = triple.subject;
   var p = triple.predicate;
   var o = triple.object;
-  var g = graphName;
+  var g = graphName || null;
+  if('name' in triple && triple.name) {
+    g = triple.name.value;
+  }
 
   var quad = '';
 
   // subject is an IRI
   if(s.type === 'IRI') {
     quad += '<' + s.value + '>';
-  } else if(bnode) {
-    // bnode normalization mode
-    quad += (s.value === bnode) ? '_:a' : '_:z';
   } else {
-    // bnode normal mode
     quad += s.value;
   }
   quad += ' ';
@@ -7836,12 +9493,7 @@ function _toNQuad(triple, graphName, bnode) {
   // predicate is an IRI
   if(p.type === 'IRI') {
     quad += '<' + p.value + '>';
-  } else if(bnode) {
-    // FIXME: TBD what to do with bnode predicates during normalization
-    // bnode normalization mode
-    quad += '_:p';
   } else {
-    // bnode normal mode
     quad += p.value;
   }
   quad += ' ';
@@ -7850,13 +9502,7 @@ function _toNQuad(triple, graphName, bnode) {
   if(o.type === 'IRI') {
     quad += '<' + o.value + '>';
   } else if(o.type === 'blank node') {
-    // normalization mode
-    if(bnode) {
-      quad += (o.value === bnode) ? '_:a' : '_:z';
-    } else {
-      // normal mode
-      quad += o.value;
-    }
+    quad += o.value;
   } else {
     var escaped = o.value
       .replace(/\\/g, '\\\\')
@@ -7875,11 +9521,9 @@ function _toNQuad(triple, graphName, bnode) {
   }
 
   // graph
-  if(g !== null) {
+  if(g !== null && g !== undefined) {
     if(g.indexOf('_:') !== 0) {
       quad += ' <' + g + '>';
-    } else if(bnode) {
-      quad += ' _:g';
     } else {
       quad += ' ' + g;
     }
@@ -7993,66 +9637,74 @@ function _parseRdfaApiData(data) {
 jsonld.registerRDFParser('rdfa-api', _parseRdfaApiData);
 
 /**
- * Creates a new UniqueNamer. A UniqueNamer issues unique names, keeping
- * track of any previously issued names.
+ * Creates a new IdentifierIssuer. A IdentifierIssuer issues unique
+ * identifiers, keeping track of any previously issued identifiers.
  *
  * @param prefix the prefix to use ('<prefix><counter>').
  */
-function UniqueNamer(prefix) {
+function IdentifierIssuer(prefix) {
   this.prefix = prefix;
   this.counter = 0;
   this.existing = {};
 }
-jsonld.UniqueNamer = UniqueNamer;
+jsonld.IdentifierIssuer = IdentifierIssuer;
+// backwards-compability
+jsonld.UniqueNamer = IdentifierIssuer;
 
 /**
- * Copies this UniqueNamer.
+ * Copies this IdentifierIssuer.
  *
- * @return a copy of this UniqueNamer.
+ * @return a copy of this IdentifierIssuer.
  */
-UniqueNamer.prototype.clone = function() {
-  var copy = new UniqueNamer(this.prefix);
+IdentifierIssuer.prototype.clone = function() {
+  var copy = new IdentifierIssuer(this.prefix);
   copy.counter = this.counter;
   copy.existing = _clone(this.existing);
   return copy;
 };
 
 /**
- * Gets the new name for the given old name, where if no old name is given
- * a new name will be generated.
+ * Gets the new identifier for the given old identifier, where if no old
+ * identifier is given a new identifier will be generated.
  *
- * @param [oldName] the old name to get the new name for.
+ * @param [old] the old identifier to get the new identifier for.
  *
- * @return the new name.
+ * @return the new identifier.
  */
-UniqueNamer.prototype.getName = function(oldName) {
-  // return existing old name
-  if(oldName && oldName in this.existing) {
-    return this.existing[oldName];
+IdentifierIssuer.prototype.getId = function(old) {
+  // return existing old identifier
+  if(old && old in this.existing) {
+    return this.existing[old];
   }
 
-  // get next name
-  var name = this.prefix + this.counter;
+  // get next identifier
+  var identifier = this.prefix + this.counter;
   this.counter += 1;
 
   // save mapping
-  if(oldName) {
-    this.existing[oldName] = name;
+  if(old) {
+    this.existing[old] = identifier;
   }
 
-  return name;
+  return identifier;
 };
+// alias
+IdentifierIssuer.prototype.getName = IdentifierIssuer.prototype.getName;
 
 /**
- * Returns true if the given oldName has already been assigned a new name.
+ * Returns true if the given old identifer has already been assigned a new
+ * identifier.
  *
- * @param oldName the oldName to check.
+ * @param old the old identifier to check.
  *
- * @return true if the oldName has been assigned a new name, false if not.
+ * @return true if the old identifier has been assigned a new identifier, false
+ *   if not.
  */
-UniqueNamer.prototype.isNamed = function(oldName) {
-  return (oldName in this.existing);
+IdentifierIssuer.prototype.hasId = function(old) {
+  return (old in this.existing);
 };
+// alias
+IdentifierIssuer.prototype.isNamed = IdentifierIssuer.prototype.hasId;
 
 /**
  * A Permutator iterates over all possible permutations of the given array
@@ -8130,52 +9782,250 @@ Permutator.prototype.next = function() {
   return rval;
 };
 
-// SHA-1 API
-var sha1 = jsonld.sha1 = {};
-
-if(_nodejs) {
-  var crypto = require('crypto');
-  sha1.create = function() {
-    var md = crypto.createHash('sha1');
-    return {
-      update: function(data) {
-        md.update(data, 'utf8');
-      },
-      digest: function() {
-        return md.digest('hex');
-      }
-    };
-  };
-} else {
-  sha1.create = function() {
-    return new sha1.MessageDigest();
-  };
-}
+//////////////////////// DEFINE NORMALIZATION HASH API ////////////////////////
 
 /**
- * Hashes the given array of quads and returns its hexadecimal SHA-1 message
- * digest.
+ * Creates a new NormalizeHash for use by the given normalization algorithm.
  *
- * @param nquads the list of serialized quads to hash.
- *
- * @return the hexadecimal SHA-1 message digest.
+ * @param algorithm the RDF Dataset Normalization algorithm to use:
+ *          'URDNA2015' or 'URGNA2012'.
  */
-sha1.hash = function(nquads) {
-  var md = sha1.create();
+var NormalizeHash = function(algorithm) {
+  if(!(this instanceof NormalizeHash)) {
+    return new NormalizeHash(algorithm);
+  }
+  if(['URDNA2015', 'URGNA2012'].indexOf(algorithm) === -1) {
+    throw new Error(
+      'Invalid RDF Dataset Normalization algorithm: ' + algorithm);
+  }
+  NormalizeHash._init.call(this, algorithm);
+};
+NormalizeHash.hashNQuads = function(algorithm, nquads) {
+  var md = new NormalizeHash(algorithm);
   for(var i = 0; i < nquads.length; ++i) {
     md.update(nquads[i]);
   }
   return md.digest();
 };
 
-// only define sha1 MessageDigest for non-nodejs
-if(!_nodejs) {
+// switch definition of NormalizeHash based on environment
+(function(_nodejs) {
+
+if(_nodejs) {
+  // define NormalizeHash using native crypto lib
+  var crypto = require('crypto');
+  NormalizeHash._init = function(algorithm) {
+    if(algorithm === 'URDNA2015') {
+      algorithm = 'sha256';
+    } else {
+      // assume URGNA2012
+      algorithm = 'sha1';
+    }
+    this.md = crypto.createHash(algorithm);
+  };
+  NormalizeHash.prototype.update = function(msg) {
+    return this.md.update(msg, 'utf8');
+  };
+  NormalizeHash.prototype.digest = function() {
+    return this.md.digest('hex');
+  };
+  return;
+}
+
+// define NormalizeHash using JavaScript
+NormalizeHash._init = function(algorithm) {
+  if(algorithm === 'URDNA2015') {
+    algorithm = new sha256.Algorithm();
+  } else {
+    // assume URGNA2012
+    algorithm = new sha1.Algorithm();
+  }
+  this.md = new MessageDigest(algorithm);
+};
+NormalizeHash.prototype.update = function(msg) {
+  return this.md.update(msg);
+};
+NormalizeHash.prototype.digest = function() {
+  return this.md.digest().toHex();
+};
+
+/////////////////////////// DEFINE MESSAGE DIGEST API /////////////////////////
+
+/**
+ * Creates a new MessageDigest.
+ *
+ * @param algorithm the algorithm to use.
+ */
+var MessageDigest = function(algorithm) {
+  if(!(this instanceof MessageDigest)) {
+    return new MessageDigest(algorithm);
+  }
+
+  this._algorithm = algorithm;
+
+  // create shared padding as needed
+  if(!MessageDigest._padding ||
+    MessageDigest._padding.length < this._algorithm.blockSize) {
+    MessageDigest._padding = String.fromCharCode(128);
+    var c = String.fromCharCode(0x00);
+    var n = 64;
+    while(n > 0) {
+      if(n & 1) {
+        MessageDigest._padding += c;
+      }
+      n >>>= 1;
+      if(n > 0) {
+        c += c;
+      }
+    }
+  }
+
+  // start digest automatically for first time
+  this.start();
+};
+
+/**
+ * Starts the digest.
+ *
+ * @return this digest object.
+ */
+MessageDigest.prototype.start = function() {
+  // up to 56-bit message length for convenience
+  this.messageLength = 0;
+
+  // full message length
+  this.fullMessageLength = [];
+  var int32s = this._algorithm.messageLengthSize / 4;
+  for(var i = 0; i < int32s; ++i) {
+    this.fullMessageLength.push(0);
+  }
+
+  // input buffer
+  this._input = new MessageDigest.ByteBuffer();
+
+  // get starting state
+  this.state = this._algorithm.start();
+
+  return this;
+};
+
+/**
+ * Updates the digest with the given message input. The input must be
+ * a string of characters.
+ *
+ * @param msg the message input to update with (ByteBuffer or string).
+ *
+ * @return this digest object.
+ */
+MessageDigest.prototype.update = function(msg) {
+  // encode message as a UTF-8 encoded binary string
+  msg = new MessageDigest.ByteBuffer(unescape(encodeURIComponent(msg)));
+
+  // update message length
+  this.messageLength += msg.length();
+  var len = msg.length();
+  len = [(len / 0x100000000) >>> 0, len >>> 0];
+  for(var i = this.fullMessageLength.length - 1; i >= 0; --i) {
+    this.fullMessageLength[i] += len[1];
+    len[1] = len[0] + ((this.fullMessageLength[i] / 0x100000000) >>> 0);
+    this.fullMessageLength[i] = this.fullMessageLength[i] >>> 0;
+    len[0] = ((len[1] / 0x100000000) >>> 0);
+  }
+
+  // add bytes to input buffer
+  this._input.putBytes(msg.bytes());
+
+  // digest blocks
+  while(this._input.length() >= this._algorithm.blockSize) {
+    this.state = this._algorithm.digest(this.state, this._input);
+  }
+
+  // compact input buffer every 2K or if empty
+  if(this._input.read > 2048 || this._input.length() === 0) {
+    this._input.compact();
+  }
+
+  return this;
+};
+
+/**
+ * Produces the digest.
+ *
+ * @return a byte buffer containing the digest value.
+ */
+MessageDigest.prototype.digest = function() {
+  /* Note: Here we copy the remaining bytes in the input buffer and add the
+  appropriate padding. Then we do the final update on a copy of the state so
+  that if the user wants to get intermediate digests they can do so. */
+
+  /* Determine the number of bytes that must be added to the message to
+  ensure its length is appropriately congruent. In other words, the data to
+  be digested must be a multiple of `blockSize`. This data includes the
+  message, some padding, and the length of the message. Since the length of
+  the message will be encoded as `messageLengthSize` bytes, that means that
+  the last segment of the data must have `blockSize` - `messageLengthSize`
+  bytes of message and padding. Therefore, the length of the message plus the
+  padding must be congruent to X mod `blockSize` because
+  `blockSize` - `messageLengthSize` = X.
+
+  For example, SHA-1 is congruent to 448 mod 512 and SHA-512 is congruent to
+  896 mod 1024. SHA-1 uses a `blockSize` of 64 bytes (512 bits) and a
+  `messageLengthSize` of 8 bytes (64 bits). SHA-512 uses a `blockSize` of
+  128 bytes (1024 bits) and a `messageLengthSize` of 16 bytes (128 bits).
+
+  In order to fill up the message length it must be filled with padding that
+  begins with 1 bit followed by all 0 bits. Padding must *always* be present,
+  so if the message length is already congruent, then `blockSize` padding bits
+  must be added. */
+
+  // create final block
+  var finalBlock = new MessageDigest.ByteBuffer();
+  finalBlock.putBytes(this._input.bytes());
+
+  // compute remaining size to be digested (include message length size)
+  var remaining = (
+    this.fullMessageLength[this.fullMessageLength.length - 1] +
+    this._algorithm.messageLengthSize);
+
+  // add padding for overflow blockSize - overflow
+  // _padding starts with 1 byte with first bit is set (byte value 128), then
+  // there may be up to (blockSize - 1) other pad bytes
+  var overflow = remaining & (this._algorithm.blockSize - 1);
+  finalBlock.putBytes(MessageDigest._padding.substr(
+    0, this._algorithm.blockSize - overflow));
+
+  // serialize message length in bits in big-endian order; since length
+  // is stored in bytes we multiply by 8 (left shift by 3 and merge in
+  // remainder from )
+  var messageLength = new MessageDigest.ByteBuffer();
+  for(var i = 0; i < this.fullMessageLength.length; ++i) {
+    messageLength.putInt32((this.fullMessageLength[i] << 3) |
+      (this.fullMessageLength[i + 1] >>> 28));
+  }
+
+  // write the length of the message (algorithm-specific)
+  this._algorithm.writeMessageLength(finalBlock, messageLength);
+
+  // digest final block
+  var state = this._algorithm.digest(this.state.copy(), finalBlock);
+
+  // write state to buffer
+  var rval = new MessageDigest.ByteBuffer();
+  state.write(rval);
+  return rval;
+};
 
 /**
  * Creates a simple byte buffer for message digest operations.
+ *
+ * @param data the data to put in the buffer.
  */
-sha1.Buffer = function() {
-  this.data = '';
+MessageDigest.ByteBuffer = function(data) {
+  if(typeof data === 'string') {
+    this.data = data;
+  } else {
+    this.data = '';
+  }
   this.read = 0;
 };
 
@@ -8184,7 +10034,7 @@ sha1.Buffer = function() {
  *
  * @param i the 32-bit integer.
  */
-sha1.Buffer.prototype.putInt32 = function(i) {
+MessageDigest.ByteBuffer.prototype.putInt32 = function(i) {
   this.data += (
     String.fromCharCode(i >> 24 & 0xFF) +
     String.fromCharCode(i >> 16 & 0xFF) +
@@ -8198,7 +10048,7 @@ sha1.Buffer.prototype.putInt32 = function(i) {
  *
  * @return the word.
  */
-sha1.Buffer.prototype.getInt32 = function() {
+MessageDigest.ByteBuffer.prototype.getInt32 = function() {
   var rval = (
     this.data.charCodeAt(this.read) << 24 ^
     this.data.charCodeAt(this.read + 1) << 16 ^
@@ -8209,11 +10059,20 @@ sha1.Buffer.prototype.getInt32 = function() {
 };
 
 /**
+ * Puts the given bytes into this buffer.
+ *
+ * @param bytes the bytes as a binary-encoded string.
+ */
+MessageDigest.ByteBuffer.prototype.putBytes = function(bytes) {
+  this.data += bytes;
+};
+
+/**
  * Gets the bytes in this buffer.
  *
  * @return a string full of UTF-8 encoded characters.
  */
-sha1.Buffer.prototype.bytes = function() {
+MessageDigest.ByteBuffer.prototype.bytes = function() {
   return this.data.slice(this.read);
 };
 
@@ -8222,14 +10081,14 @@ sha1.Buffer.prototype.bytes = function() {
  *
  * @return the number of bytes in this buffer.
  */
-sha1.Buffer.prototype.length = function() {
+MessageDigest.ByteBuffer.prototype.length = function() {
   return this.data.length - this.read;
 };
 
 /**
  * Compacts this buffer.
  */
-sha1.Buffer.prototype.compact = function() {
+MessageDigest.ByteBuffer.prototype.compact = function() {
   this.data = this.data.slice(this.read);
   this.read = 0;
 };
@@ -8239,7 +10098,7 @@ sha1.Buffer.prototype.compact = function() {
  *
  * @return a hexadecimal string.
  */
-sha1.Buffer.prototype.toHex = function() {
+MessageDigest.ByteBuffer.prototype.toHex = function() {
   var rval = '';
   for(var i = this.read; i < this.data.length; ++i) {
     var b = this.data.charCodeAt(i);
@@ -8251,148 +10110,39 @@ sha1.Buffer.prototype.toHex = function() {
   return rval;
 };
 
-/**
- * Creates a SHA-1 message digest object.
- *
- * @return a message digest object.
- */
-sha1.MessageDigest = function() {
-  // do initialization as necessary
-  if(!_sha1.initialized) {
-    _sha1.init();
-  }
+///////////////////////////// DEFINE SHA-1 ALGORITHM //////////////////////////
 
-  this.blockLength = 64;
+var sha1 = {
+  // used for word storage
+  _w: null
+};
+
+sha1.Algorithm = function() {
+  this.name = 'sha1',
+  this.blockSize = 64;
   this.digestLength = 20;
-  // length of message so far (does not including padding)
-  this.messageLength = 0;
-
-  // input buffer
-  this.input = new sha1.Buffer();
-
-  // for storing words in the SHA-1 algorithm
-  this.words = new Array(80);
-
-  // SHA-1 state contains five 32-bit integers
-  this.state = {
-    h0: 0x67452301,
-    h1: 0xEFCDAB89,
-    h2: 0x98BADCFE,
-    h3: 0x10325476,
-    h4: 0xC3D2E1F0
-  };
+  this.messageLengthSize = 8;
 };
 
-/**
- * Updates the digest with the given string input.
- *
- * @param msg the message input to update with.
- */
-sha1.MessageDigest.prototype.update = function(msg) {
-  // UTF-8 encode message
-  msg = unescape(encodeURIComponent(msg));
-
-  // update message length and input buffer
-  this.messageLength += msg.length;
-  this.input.data += msg;
-
-  // process input
-  _sha1.update(this.state, this.words, this.input);
-
-  // compact input buffer every 2K or if empty
-  if(this.input.read > 2048 || this.input.length() === 0) {
-    this.input.compact();
+sha1.Algorithm.prototype.start = function() {
+  if(!sha1._w) {
+    sha1._w = new Array(80);
   }
+  return sha1._createState();
 };
 
-/**
- * Produces the digest.
- *
- * @return the digest as a hexadecimal string.
- */
-sha1.MessageDigest.prototype.digest = function() {
-  /* Determine the number of bytes that must be added to the message
-  to ensure its length is congruent to 448 mod 512. In other words,
-  a 64-bit integer that gives the length of the message will be
-  appended to the message and whatever the length of the message is
-  plus 64 bits must be a multiple of 512. So the length of the
-  message must be congruent to 448 mod 512 because 512 - 64 = 448.
-
-  In order to fill up the message length it must be filled with
-  padding that begins with 1 bit followed by all 0 bits. Padding
-  must *always* be present, so if the message length is already
-  congruent to 448 mod 512, then 512 padding bits must be added. */
-
-  // 512 bits == 64 bytes, 448 bits == 56 bytes, 64 bits = 8 bytes
-  // _padding starts with 1 byte with first bit is set in it which
-  // is byte value 128, then there may be up to 63 other pad bytes
-  var len = this.messageLength;
-  var padBytes = new sha1.Buffer();
-  padBytes.data += this.input.bytes();
-  padBytes.data += _sha1.padding.substr(0, 64 - ((len + 8) % 64));
-
-  /* Now append length of the message. The length is appended in bits
-  as a 64-bit number in big-endian order. Since we store the length
-  in bytes, we must multiply it by 8 (or left shift by 3). So here
-  store the high 3 bits in the low end of the first 32-bits of the
-  64-bit number and the lower 5 bits in the high end of the second
-  32-bits. */
-  padBytes.putInt32((len >>> 29) & 0xFF);
-  padBytes.putInt32((len << 3) & 0xFFFFFFFF);
-  _sha1.update(this.state, this.words, padBytes);
-  var rval = new sha1.Buffer();
-  rval.putInt32(this.state.h0);
-  rval.putInt32(this.state.h1);
-  rval.putInt32(this.state.h2);
-  rval.putInt32(this.state.h3);
-  rval.putInt32(this.state.h4);
-  return rval.toHex();
+sha1.Algorithm.prototype.writeMessageLength = function(
+  finalBlock, messageLength) {
+  // message length is in bits and in big-endian order; simply append
+  finalBlock.putBytes(messageLength.bytes());
 };
 
-// private SHA-1 data
-var _sha1 = {
-  padding: null,
-  initialized: false
-};
-
-/**
- * Initializes the constant tables.
- */
-_sha1.init = function() {
-  // create padding
-  _sha1.padding = String.fromCharCode(128);
-  var c = String.fromCharCode(0x00);
-  var n = 64;
-  while(n > 0) {
-    if(n & 1) {
-      _sha1.padding += c;
-    }
-    n >>>= 1;
-    if(n > 0) {
-      c += c;
-    }
-  }
-
-  // now initialized
-  _sha1.initialized = true;
-};
-
-/**
- * Updates a SHA-1 state with the given byte buffer.
- *
- * @param s the SHA-1 state to update.
- * @param w the array to use to store words.
- * @param input the input byte buffer.
- */
-_sha1.update = function(s, w, input) {
+sha1.Algorithm.prototype.digest = function(s, input) {
   // consume 512 bit (64 byte) chunks
   var t, a, b, c, d, e, f, i;
   var len = input.length();
+  var _w = sha1._w;
   while(len >= 64) {
-    // the w array will be populated with sixteen 32-bit big-endian words
-    // and then extended into 80 32-bit words according to SHA-1 algorithm
-    // and for 32-79 using Max Locktyukhin's optimization
-
     // initialize hash value for this chunk
     a = s.h0;
     b = s.h1;
@@ -8400,10 +10150,14 @@ _sha1.update = function(s, w, input) {
     d = s.h3;
     e = s.h4;
 
+    // the _w array will be populated with sixteen 32-bit big-endian words
+    // and then extended into 80 32-bit words according to SHA-1 algorithm
+    // and for 32-79 using Max Locktyukhin's optimization
+
     // round 1
     for(i = 0; i < 16; ++i) {
       t = input.getInt32();
-      w[i] = t;
+      _w[i] = t;
       f = d ^ (b & (c ^ d));
       t = ((a << 5) | (a >>> 27)) + f + e + 0x5A827999 + t;
       e = d;
@@ -8413,9 +10167,9 @@ _sha1.update = function(s, w, input) {
       a = t;
     }
     for(; i < 20; ++i) {
-      t = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]);
+      t = (_w[i - 3] ^ _w[i - 8] ^ _w[i - 14] ^ _w[i - 16]);
       t = (t << 1) | (t >>> 31);
-      w[i] = t;
+      _w[i] = t;
       f = d ^ (b & (c ^ d));
       t = ((a << 5) | (a >>> 27)) + f + e + 0x5A827999 + t;
       e = d;
@@ -8426,9 +10180,9 @@ _sha1.update = function(s, w, input) {
     }
     // round 2
     for(; i < 32; ++i) {
-      t = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]);
+      t = (_w[i - 3] ^ _w[i - 8] ^ _w[i - 14] ^ _w[i - 16]);
       t = (t << 1) | (t >>> 31);
-      w[i] = t;
+      _w[i] = t;
       f = b ^ c ^ d;
       t = ((a << 5) | (a >>> 27)) + f + e + 0x6ED9EBA1 + t;
       e = d;
@@ -8438,9 +10192,9 @@ _sha1.update = function(s, w, input) {
       a = t;
     }
     for(; i < 40; ++i) {
-      t = (w[i - 6] ^ w[i - 16] ^ w[i - 28] ^ w[i - 32]);
+      t = (_w[i - 6] ^ _w[i - 16] ^ _w[i - 28] ^ _w[i - 32]);
       t = (t << 2) | (t >>> 30);
-      w[i] = t;
+      _w[i] = t;
       f = b ^ c ^ d;
       t = ((a << 5) | (a >>> 27)) + f + e + 0x6ED9EBA1 + t;
       e = d;
@@ -8451,9 +10205,9 @@ _sha1.update = function(s, w, input) {
     }
     // round 3
     for(; i < 60; ++i) {
-      t = (w[i - 6] ^ w[i - 16] ^ w[i - 28] ^ w[i - 32]);
+      t = (_w[i - 6] ^ _w[i - 16] ^ _w[i - 28] ^ _w[i - 32]);
       t = (t << 2) | (t >>> 30);
-      w[i] = t;
+      _w[i] = t;
       f = (b & c) | (d & (b ^ c));
       t = ((a << 5) | (a >>> 27)) + f + e + 0x8F1BBCDC + t;
       e = d;
@@ -8464,9 +10218,9 @@ _sha1.update = function(s, w, input) {
     }
     // round 4
     for(; i < 80; ++i) {
-      t = (w[i - 6] ^ w[i - 16] ^ w[i - 28] ^ w[i - 32]);
+      t = (_w[i - 6] ^ _w[i - 16] ^ _w[i - 28] ^ _w[i - 32]);
       t = (t << 2) | (t >>> 30);
-      w[i] = t;
+      _w[i] = t;
       f = b ^ c ^ d;
       t = ((a << 5) | (a >>> 27)) + f + e + 0xCA62C1D6 + t;
       e = d;
@@ -8477,17 +10231,218 @@ _sha1.update = function(s, w, input) {
     }
 
     // update hash state
-    s.h0 += a;
-    s.h1 += b;
-    s.h2 += c;
-    s.h3 += d;
-    s.h4 += e;
+    s.h0 = (s.h0 + a) | 0;
+    s.h1 = (s.h1 + b) | 0;
+    s.h2 = (s.h2 + c) | 0;
+    s.h3 = (s.h3 + d) | 0;
+    s.h4 = (s.h4 + e) | 0;
 
     len -= 64;
   }
+
+  return s;
 };
 
-} // end non-nodejs
+sha1._createState = function() {
+  var state = {
+    h0: 0x67452301,
+    h1: 0xEFCDAB89,
+    h2: 0x98BADCFE,
+    h3: 0x10325476,
+    h4: 0xC3D2E1F0
+  };
+  state.copy = function() {
+    var rval = sha1._createState();
+    rval.h0 = state.h0;
+    rval.h1 = state.h1;
+    rval.h2 = state.h2;
+    rval.h3 = state.h3;
+    rval.h4 = state.h4;
+    return rval;
+  };
+  state.write = function(buffer) {
+    buffer.putInt32(state.h0);
+    buffer.putInt32(state.h1);
+    buffer.putInt32(state.h2);
+    buffer.putInt32(state.h3);
+    buffer.putInt32(state.h4);
+  };
+  return state;
+};
+
+//////////////////////////// DEFINE SHA-256 ALGORITHM /////////////////////////
+
+var sha256 = {
+  // shared state
+  _k: null,
+  _w: null
+};
+
+sha256.Algorithm = function() {
+  this.name = 'sha256',
+  this.blockSize = 64;
+  this.digestLength = 32;
+  this.messageLengthSize = 8;
+};
+
+sha256.Algorithm.prototype.start = function() {
+  if(!sha256._k) {
+    sha256._init();
+  }
+  return sha256._createState();
+};
+
+sha256.Algorithm.prototype.writeMessageLength = function(
+  finalBlock, messageLength) {
+  // message length is in bits and in big-endian order; simply append
+  finalBlock.putBytes(messageLength.bytes());
+};
+
+sha256.Algorithm.prototype.digest = function(s, input) {
+  // consume 512 bit (64 byte) chunks
+  var t1, t2, s0, s1, ch, maj, i, a, b, c, d, e, f, g, h;
+  var len = input.length();
+  var _k = sha256._k;
+  var _w = sha256._w;
+  while(len >= 64) {
+    // the w array will be populated with sixteen 32-bit big-endian words
+    // and then extended into 64 32-bit words according to SHA-256
+    for(i = 0; i < 16; ++i) {
+      _w[i] = input.getInt32();
+    }
+    for(; i < 64; ++i) {
+      // XOR word 2 words ago rot right 17, rot right 19, shft right 10
+      t1 = _w[i - 2];
+      t1 =
+        ((t1 >>> 17) | (t1 << 15)) ^
+        ((t1 >>> 19) | (t1 << 13)) ^
+        (t1 >>> 10);
+      // XOR word 15 words ago rot right 7, rot right 18, shft right 3
+      t2 = _w[i - 15];
+      t2 =
+        ((t2 >>> 7) | (t2 << 25)) ^
+        ((t2 >>> 18) | (t2 << 14)) ^
+        (t2 >>> 3);
+      // sum(t1, word 7 ago, t2, word 16 ago) modulo 2^32
+      _w[i] = (t1 + _w[i - 7] + t2 + _w[i - 16]) | 0;
+    }
+
+    // initialize hash value for this chunk
+    a = s.h0;
+    b = s.h1;
+    c = s.h2;
+    d = s.h3;
+    e = s.h4;
+    f = s.h5;
+    g = s.h6;
+    h = s.h7;
+
+    // round function
+    for(i = 0; i < 64; ++i) {
+      // Sum1(e)
+      s1 =
+        ((e >>> 6) | (e << 26)) ^
+        ((e >>> 11) | (e << 21)) ^
+        ((e >>> 25) | (e << 7));
+      // Ch(e, f, g) (optimized the same way as SHA-1)
+      ch = g ^ (e & (f ^ g));
+      // Sum0(a)
+      s0 =
+        ((a >>> 2) | (a << 30)) ^
+        ((a >>> 13) | (a << 19)) ^
+        ((a >>> 22) | (a << 10));
+      // Maj(a, b, c) (optimized the same way as SHA-1)
+      maj = (a & b) | (c & (a ^ b));
+
+      // main algorithm
+      t1 = h + s1 + ch + _k[i] + _w[i];
+      t2 = s0 + maj;
+      h = g;
+      g = f;
+      f = e;
+      e = (d + t1) | 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (t1 + t2) | 0;
+    }
+
+    // update hash state
+    s.h0 = (s.h0 + a) | 0;
+    s.h1 = (s.h1 + b) | 0;
+    s.h2 = (s.h2 + c) | 0;
+    s.h3 = (s.h3 + d) | 0;
+    s.h4 = (s.h4 + e) | 0;
+    s.h5 = (s.h5 + f) | 0;
+    s.h6 = (s.h6 + g) | 0;
+    s.h7 = (s.h7 + h) | 0;
+    len -= 64;
+  }
+
+  return s;
+};
+
+sha256._createState = function() {
+  var state = {
+    h0: 0x6A09E667,
+    h1: 0xBB67AE85,
+    h2: 0x3C6EF372,
+    h3: 0xA54FF53A,
+    h4: 0x510E527F,
+    h5: 0x9B05688C,
+    h6: 0x1F83D9AB,
+    h7: 0x5BE0CD19
+  };
+  state.copy = function() {
+    var rval = sha256._createState();
+    rval.h0 = state.h0;
+    rval.h1 = state.h1;
+    rval.h2 = state.h2;
+    rval.h3 = state.h3;
+    rval.h4 = state.h4;
+    rval.h5 = state.h5;
+    rval.h6 = state.h6;
+    rval.h7 = state.h7;
+    return rval;
+  };
+  state.write = function(buffer) {
+    buffer.putInt32(state.h0);
+    buffer.putInt32(state.h1);
+    buffer.putInt32(state.h2);
+    buffer.putInt32(state.h3);
+    buffer.putInt32(state.h4);
+    buffer.putInt32(state.h5);
+    buffer.putInt32(state.h6);
+    buffer.putInt32(state.h7);
+  };
+  return state;
+};
+
+sha256._init = function() {
+  // create K table for SHA-256
+  sha256._k = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+
+  // used for word storage
+  sha256._w = new Array(64);
+};
+
+})(_nodejs); // end definition of NormalizeHash
 
 if(!XMLSerializer) {
 
@@ -8498,81 +10453,33 @@ var _defineXMLSerializer = function() {
 } // end _defineXMLSerializer
 
 // define URL parser
+// parseUri 1.2.2
+// (c) Steven Levithan <stevenlevithan.com>
+// MIT License
+// with local jsonld.js modifications
 jsonld.url = {};
-if(_nodejs) {
-  var parse = require('url').parse;
-  jsonld.url.parse = function(url) {
-    var parsed = parse(url);
-    parsed.pathname = parsed.pathname || '';
-    _parseAuthority(parsed);
-    parsed.normalizedPath = _removeDotSegments(
-      parsed.pathname, parsed.authority !== '');
-    return parsed;
-  };
-} else {
-  // parseUri 1.2.2
-  // (c) Steven Levithan <stevenlevithan.com>
-  // MIT License
-  var parseUri = {};
-  parseUri.options = {
-    key: ['href','protocol','host','auth','user','password','hostname','port','relative','path','directory','file','query','hash'],
-    parser: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/
-  };
-  jsonld.url.parse = function(str) {
-    var o = parseUri.options;
-    var m = o.parser.exec(str);
-    var uri = {};
-    var i = 14;
-    while(i--) {
-      uri[o.key[i]] = m[i] || '';
-    }
-    // normalize to node.js API
-    if(uri.host && uri.path === '') {
-      uri.path = '/';
-    }
-    uri.pathname = uri.path || '';
-    _parseAuthority(uri);
-    uri.normalizedPath = _removeDotSegments(uri.pathname, uri.authority !== '');
-    if(uri.query) {
-      uri.path = uri.path + '?' + uri.query;
-    }
-    if(uri.protocol) {
-      uri.protocol += ':';
-    }
-    if(uri.hash) {
-      uri.hash = '#' + uri.hash;
-    }
-    return uri;
-  };
-}
-
-/**
- * Parses the authority for the pre-parsed given URL.
- *
- * @param parsed the pre-parsed URL.
- */
-function _parseAuthority(parsed) {
-  // parse authority for unparsed relative network-path reference
-  if(parsed.href.indexOf(':') === -1 && parsed.href.indexOf('//') === 0 &&
-    !parsed.host) {
-    // must parse authority from pathname
-    parsed.pathname = parsed.pathname.substr(2);
-    var idx = parsed.pathname.indexOf('/');
-    if(idx === -1) {
-      parsed.authority = parsed.pathname;
-      parsed.pathname = '';
-    } else {
-      parsed.authority = parsed.pathname.substr(0, idx);
-      parsed.pathname = parsed.pathname.substr(idx);
-    }
-  } else {
-    // construct authority
-    parsed.authority = parsed.host || '';
-    if(parsed.auth) {
-      parsed.authority = parsed.auth + '@' + parsed.authority;
-    }
+jsonld.url.parsers = {
+  simple: {
+    // RFC 3986 basic parts
+    keys: ['href','scheme','authority','path','query','fragment'],
+    regex: /^(?:([^:\/?#]+):)?(?:\/\/([^\/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?/
+  },
+  full: {
+    keys: ['href','protocol','scheme','authority','auth','user','password','hostname','port','path','directory','file','query','fragment'],
+    regex: /^(([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?(?:(((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/
   }
-}
+};
+jsonld.url.parse = function(str, parser) {
+  var parsed = {};
+  var o = jsonld.url.parsers[parser || 'full'];
+  var m = o.regex.exec(str);
+  var i = o.keys.length;
+  while(i--) {
+    parsed[o.keys[i]] = (m[i] === undefined) ? null : m[i];
+  }
+  parsed.normalizedPath = _removeDotSegments(parsed.path, !!parsed.authority);
+  return parsed;
+};
 
 /**
  * Removes dot segments from a URL path.
@@ -8623,9 +10530,10 @@ if(_nodejs) {
 if(_nodejs) {
   jsonld.use = function(extension) {
     switch(extension) {
+      // TODO: Deprecated as of 0.4.0. Remove at some point.
       case 'request':
         // use node JSON-LD request extension
-        jsonld.request = require('./request');
+        jsonld.request = require('jsonld-request');
         break;
       default:
         throw new JsonLdError(
@@ -8633,6 +10541,11 @@ if(_nodejs) {
           'jsonld.UnknownExtension', {extension: extension});
     }
   };
+
+  // expose version
+  var _module = {exports: {}, filename: __dirname};
+  require('pkginfo')(_module, 'version');
+  jsonld.version = _module.exports.version;
 }
 
 // end of jsonld API factory
@@ -8647,649 +10560,52 @@ var factory = function() {
     return factory();
   });
 };
-// the shared global jsonld API instance
-wrapper(factory);
 
-if(_nodejs) {
-  // export nodejs API
-  module.exports = factory;
-} else if(typeof define === 'function' && define.amd) {
+if(!_nodejs && (typeof define === 'function' && define.amd)) {
   // export AMD API
   define([], function() {
+    // now that module is defined, wrap main jsonld API instance
+    wrapper(factory);
     return factory;
   });
-} else if(_browser) {
-  // export simple browser API
-  if(typeof jsonld === 'undefined') {
-    jsonld = jsonldjs = factory;
-  } else {
-    jsonldjs = factory;
+} else {
+  // wrap the main jsonld API instance
+  wrapper(factory);
+
+  if(typeof require === 'function' &&
+    typeof module !== 'undefined' && module.exports) {
+    // export CommonJS/nodejs API
+    module.exports = factory;
+  }
+
+  if(_browser) {
+    // export simple browser API
+    if(typeof jsonld === 'undefined') {
+      jsonld = jsonldjs = factory;
+    } else {
+      jsonldjs = factory;
+    }
   }
 }
+
+return factory;
 
 })();
 
-module.exports = jsonldjs;
-}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./request":4,"_process":3,"crypto":4,"es6-promise":6,"http":4,"request":4,"url":4,"util":4,"xmldom":4}],6:[function(require,module,exports){
-"use strict";
-var Promise = require("./promise/promise").Promise;
-var polyfill = require("./promise/polyfill").polyfill;
-exports.Promise = Promise;
-exports.polyfill = polyfill;
-},{"./promise/polyfill":10,"./promise/promise":11}],7:[function(require,module,exports){
-"use strict";
-/* global toString */
-
-var isArray = require("./utils").isArray;
-var isFunction = require("./utils").isFunction;
-
-/**
-  Returns a promise that is fulfilled when all the given promises have been
-  fulfilled, or rejected if any of them become rejected. The return promise
-  is fulfilled with an array that gives all the values in the order they were
-  passed in the `promises` array argument.
-
-  Example:
-
-  ```javascript
-  var promise1 = RSVP.resolve(1);
-  var promise2 = RSVP.resolve(2);
-  var promise3 = RSVP.resolve(3);
-  var promises = [ promise1, promise2, promise3 ];
-
-  RSVP.all(promises).then(function(array){
-    // The array here would be [ 1, 2, 3 ];
-  });
-  ```
-
-  If any of the `promises` given to `RSVP.all` are rejected, the first promise
-  that is rejected will be given as an argument to the returned promises's
-  rejection handler. For example:
-
-  Example:
-
-  ```javascript
-  var promise1 = RSVP.resolve(1);
-  var promise2 = RSVP.reject(new Error("2"));
-  var promise3 = RSVP.reject(new Error("3"));
-  var promises = [ promise1, promise2, promise3 ];
-
-  RSVP.all(promises).then(function(array){
-    // Code here never runs because there are rejected promises!
-  }, function(error) {
-    // error.message === "2"
-  });
-  ```
-
-  @method all
-  @for RSVP
-  @param {Array} promises
-  @param {String} label
-  @return {Promise} promise that is fulfilled when all `promises` have been
-  fulfilled, or rejected if any of them become rejected.
-*/
-function all(promises) {
-  /*jshint validthis:true */
-  var Promise = this;
-
-  if (!isArray(promises)) {
-    throw new TypeError('You must pass an array to all.');
-  }
-
-  return new Promise(function(resolve, reject) {
-    var results = [], remaining = promises.length,
-    promise;
-
-    if (remaining === 0) {
-      resolve([]);
-    }
-
-    function resolver(index) {
-      return function(value) {
-        resolveAll(index, value);
-      };
-    }
-
-    function resolveAll(index, value) {
-      results[index] = value;
-      if (--remaining === 0) {
-        resolve(results);
-      }
-    }
-
-    for (var i = 0; i < promises.length; i++) {
-      promise = promises[i];
-
-      if (promise && isFunction(promise.then)) {
-        promise.then(resolver(i), reject);
-      } else {
-        resolveAll(i, promise);
-      }
-    }
-  });
-}
-
-exports.all = all;
-},{"./utils":15}],8:[function(require,module,exports){
-(function (process,global){
-"use strict";
-var browserGlobal = (typeof window !== 'undefined') ? window : {};
-var BrowserMutationObserver = browserGlobal.MutationObserver || browserGlobal.WebKitMutationObserver;
-var local = (typeof global !== 'undefined') ? global : (this === undefined? window:this);
-
-// node
-function useNextTick() {
-  return function() {
-    process.nextTick(flush);
-  };
-}
-
-function useMutationObserver() {
-  var iterations = 0;
-  var observer = new BrowserMutationObserver(flush);
-  var node = document.createTextNode('');
-  observer.observe(node, { characterData: true });
-
-  return function() {
-    node.data = (iterations = ++iterations % 2);
-  };
-}
-
-function useSetTimeout() {
-  return function() {
-    local.setTimeout(flush, 1);
-  };
-}
-
-var queue = [];
-function flush() {
-  for (var i = 0; i < queue.length; i++) {
-    var tuple = queue[i];
-    var callback = tuple[0], arg = tuple[1];
-    callback(arg);
-  }
-  queue = [];
-}
-
-var scheduleFlush;
-
-// Decide what async method to use to triggering processing of queued callbacks:
-if (typeof process !== 'undefined' && {}.toString.call(process) === '[object process]') {
-  scheduleFlush = useNextTick();
-} else if (BrowserMutationObserver) {
-  scheduleFlush = useMutationObserver();
-} else {
-  scheduleFlush = useSetTimeout();
-}
-
-function asap(callback, arg) {
-  var length = queue.push([callback, arg]);
-  if (length === 1) {
-    // If length is 1, that means that we need to schedule an async flush.
-    // If additional callbacks are queued before the queue is flushed, they
-    // will be processed by this flush that we are scheduling.
-    scheduleFlush();
-  }
-}
-
-exports.asap = asap;
-}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":3}],9:[function(require,module,exports){
-"use strict";
-var config = {
-  instrument: false
-};
-
-function configure(name, value) {
-  if (arguments.length === 2) {
-    config[name] = value;
-  } else {
-    return config[name];
-  }
-}
-
-exports.config = config;
-exports.configure = configure;
-},{}],10:[function(require,module,exports){
-(function (global){
-"use strict";
-/*global self*/
-var RSVPPromise = require("./promise").Promise;
-var isFunction = require("./utils").isFunction;
-
-function polyfill() {
-  var local;
-
-  if (typeof global !== 'undefined') {
-    local = global;
-  } else if (typeof window !== 'undefined' && window.document) {
-    local = window;
-  } else {
-    local = self;
-  }
-
-  var es6PromiseSupport = 
-    "Promise" in local &&
-    // Some of these methods are missing from
-    // Firefox/Chrome experimental implementations
-    "resolve" in local.Promise &&
-    "reject" in local.Promise &&
-    "all" in local.Promise &&
-    "race" in local.Promise &&
-    // Older version of the spec had a resolver object
-    // as the arg rather than a function
-    (function() {
-      var resolve;
-      new local.Promise(function(r) { resolve = r; });
-      return isFunction(resolve);
-    }());
-
-  if (!es6PromiseSupport) {
-    local.Promise = RSVPPromise;
-  }
-}
-
-exports.polyfill = polyfill;
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./promise":11,"./utils":15}],11:[function(require,module,exports){
-"use strict";
-var config = require("./config").config;
-var configure = require("./config").configure;
-var objectOrFunction = require("./utils").objectOrFunction;
-var isFunction = require("./utils").isFunction;
-var now = require("./utils").now;
-var all = require("./all").all;
-var race = require("./race").race;
-var staticResolve = require("./resolve").resolve;
-var staticReject = require("./reject").reject;
-var asap = require("./asap").asap;
-
-var counter = 0;
-
-config.async = asap; // default async is asap;
-
-function Promise(resolver) {
-  if (!isFunction(resolver)) {
-    throw new TypeError('You must pass a resolver function as the first argument to the promise constructor');
-  }
-
-  if (!(this instanceof Promise)) {
-    throw new TypeError("Failed to construct 'Promise': Please use the 'new' operator, this object constructor cannot be called as a function.");
-  }
-
-  this._subscribers = [];
-
-  invokeResolver(resolver, this);
-}
-
-function invokeResolver(resolver, promise) {
-  function resolvePromise(value) {
-    resolve(promise, value);
-  }
-
-  function rejectPromise(reason) {
-    reject(promise, reason);
-  }
-
-  try {
-    resolver(resolvePromise, rejectPromise);
-  } catch(e) {
-    rejectPromise(e);
-  }
-}
-
-function invokeCallback(settled, promise, callback, detail) {
-  var hasCallback = isFunction(callback),
-      value, error, succeeded, failed;
-
-  if (hasCallback) {
-    try {
-      value = callback(detail);
-      succeeded = true;
-    } catch(e) {
-      failed = true;
-      error = e;
-    }
-  } else {
-    value = detail;
-    succeeded = true;
-  }
-
-  if (handleThenable(promise, value)) {
-    return;
-  } else if (hasCallback && succeeded) {
-    resolve(promise, value);
-  } else if (failed) {
-    reject(promise, error);
-  } else if (settled === FULFILLED) {
-    resolve(promise, value);
-  } else if (settled === REJECTED) {
-    reject(promise, value);
-  }
-}
-
-var PENDING   = void 0;
-var SEALED    = 0;
-var FULFILLED = 1;
-var REJECTED  = 2;
-
-function subscribe(parent, child, onFulfillment, onRejection) {
-  var subscribers = parent._subscribers;
-  var length = subscribers.length;
-
-  subscribers[length] = child;
-  subscribers[length + FULFILLED] = onFulfillment;
-  subscribers[length + REJECTED]  = onRejection;
-}
-
-function publish(promise, settled) {
-  var child, callback, subscribers = promise._subscribers, detail = promise._detail;
-
-  for (var i = 0; i < subscribers.length; i += 3) {
-    child = subscribers[i];
-    callback = subscribers[i + settled];
-
-    invokeCallback(settled, child, callback, detail);
-  }
-
-  promise._subscribers = null;
-}
-
-Promise.prototype = {
-  constructor: Promise,
-
-  _state: undefined,
-  _detail: undefined,
-  _subscribers: undefined,
-
-  then: function(onFulfillment, onRejection) {
-    var promise = this;
-
-    var thenPromise = new this.constructor(function() {});
-
-    if (this._state) {
-      var callbacks = arguments;
-      config.async(function invokePromiseCallback() {
-        invokeCallback(promise._state, thenPromise, callbacks[promise._state - 1], promise._detail);
-      });
-    } else {
-      subscribe(this, thenPromise, onFulfillment, onRejection);
-    }
-
-    return thenPromise;
-  },
-
-  'catch': function(onRejection) {
-    return this.then(null, onRejection);
-  }
-};
-
-Promise.all = all;
-Promise.race = race;
-Promise.resolve = staticResolve;
-Promise.reject = staticReject;
-
-function handleThenable(promise, value) {
-  var then = null,
-  resolved;
-
-  try {
-    if (promise === value) {
-      throw new TypeError("A promises callback cannot return that same promise.");
-    }
-
-    if (objectOrFunction(value)) {
-      then = value.then;
-
-      if (isFunction(then)) {
-        then.call(value, function(val) {
-          if (resolved) { return true; }
-          resolved = true;
-
-          if (value !== val) {
-            resolve(promise, val);
-          } else {
-            fulfill(promise, val);
-          }
-        }, function(val) {
-          if (resolved) { return true; }
-          resolved = true;
-
-          reject(promise, val);
-        });
-
-        return true;
-      }
-    }
-  } catch (error) {
-    if (resolved) { return true; }
-    reject(promise, error);
-    return true;
-  }
-
-  return false;
-}
-
-function resolve(promise, value) {
-  if (promise === value) {
-    fulfill(promise, value);
-  } else if (!handleThenable(promise, value)) {
-    fulfill(promise, value);
-  }
-}
-
-function fulfill(promise, value) {
-  if (promise._state !== PENDING) { return; }
-  promise._state = SEALED;
-  promise._detail = value;
-
-  config.async(publishFulfillment, promise);
-}
-
-function reject(promise, reason) {
-  if (promise._state !== PENDING) { return; }
-  promise._state = SEALED;
-  promise._detail = reason;
-
-  config.async(publishRejection, promise);
-}
-
-function publishFulfillment(promise) {
-  publish(promise, promise._state = FULFILLED);
-}
-
-function publishRejection(promise) {
-  publish(promise, promise._state = REJECTED);
-}
-
-exports.Promise = Promise;
-},{"./all":7,"./asap":8,"./config":9,"./race":12,"./reject":13,"./resolve":14,"./utils":15}],12:[function(require,module,exports){
-"use strict";
-/* global toString */
-var isArray = require("./utils").isArray;
-
-/**
-  `RSVP.race` allows you to watch a series of promises and act as soon as the
-  first promise given to the `promises` argument fulfills or rejects.
-
-  Example:
-
-  ```javascript
-  var promise1 = new RSVP.Promise(function(resolve, reject){
-    setTimeout(function(){
-      resolve("promise 1");
-    }, 200);
-  });
-
-  var promise2 = new RSVP.Promise(function(resolve, reject){
-    setTimeout(function(){
-      resolve("promise 2");
-    }, 100);
-  });
-
-  RSVP.race([promise1, promise2]).then(function(result){
-    // result === "promise 2" because it was resolved before promise1
-    // was resolved.
-  });
-  ```
-
-  `RSVP.race` is deterministic in that only the state of the first completed
-  promise matters. For example, even if other promises given to the `promises`
-  array argument are resolved, but the first completed promise has become
-  rejected before the other promises became fulfilled, the returned promise
-  will become rejected:
-
-  ```javascript
-  var promise1 = new RSVP.Promise(function(resolve, reject){
-    setTimeout(function(){
-      resolve("promise 1");
-    }, 200);
-  });
-
-  var promise2 = new RSVP.Promise(function(resolve, reject){
-    setTimeout(function(){
-      reject(new Error("promise 2"));
-    }, 100);
-  });
-
-  RSVP.race([promise1, promise2]).then(function(result){
-    // Code here never runs because there are rejected promises!
-  }, function(reason){
-    // reason.message === "promise2" because promise 2 became rejected before
-    // promise 1 became fulfilled
-  });
-  ```
-
-  @method race
-  @for RSVP
-  @param {Array} promises array of promises to observe
-  @param {String} label optional string for describing the promise returned.
-  Useful for tooling.
-  @return {Promise} a promise that becomes fulfilled with the value the first
-  completed promises is resolved with if the first completed promise was
-  fulfilled, or rejected with the reason that the first completed promise
-  was rejected with.
-*/
-function race(promises) {
-  /*jshint validthis:true */
-  var Promise = this;
-
-  if (!isArray(promises)) {
-    throw new TypeError('You must pass an array to race.');
-  }
-  return new Promise(function(resolve, reject) {
-    var results = [], promise;
-
-    for (var i = 0; i < promises.length; i++) {
-      promise = promises[i];
-
-      if (promise && typeof promise.then === 'function') {
-        promise.then(resolve, reject);
-      } else {
-        resolve(promise);
-      }
-    }
-  });
-}
-
-exports.race = race;
-},{"./utils":15}],13:[function(require,module,exports){
-"use strict";
-/**
-  `RSVP.reject` returns a promise that will become rejected with the passed
-  `reason`. `RSVP.reject` is essentially shorthand for the following:
-
-  ```javascript
-  var promise = new RSVP.Promise(function(resolve, reject){
-    reject(new Error('WHOOPS'));
-  });
-
-  promise.then(function(value){
-    // Code here doesn't run because the promise is rejected!
-  }, function(reason){
-    // reason.message === 'WHOOPS'
-  });
-  ```
-
-  Instead of writing the above, your code now simply becomes the following:
-
-  ```javascript
-  var promise = RSVP.reject(new Error('WHOOPS'));
-
-  promise.then(function(value){
-    // Code here doesn't run because the promise is rejected!
-  }, function(reason){
-    // reason.message === 'WHOOPS'
-  });
-  ```
-
-  @method reject
-  @for RSVP
-  @param {Any} reason value that the returned promise will be rejected with.
-  @param {String} label optional string for identifying the returned promise.
-  Useful for tooling.
-  @return {Promise} a promise that will become rejected with the given
-  `reason`.
-*/
-function reject(reason) {
-  /*jshint validthis:true */
-  var Promise = this;
-
-  return new Promise(function (resolve, reject) {
-    reject(reason);
-  });
-}
-
-exports.reject = reject;
-},{}],14:[function(require,module,exports){
-"use strict";
-function resolve(value) {
-  /*jshint validthis:true */
-  if (value && typeof value === 'object' && value.constructor === this) {
-    return value;
-  }
-
-  var Promise = this;
-
-  return new Promise(function(resolve) {
-    resolve(value);
-  });
-}
-
-exports.resolve = resolve;
-},{}],15:[function(require,module,exports){
-"use strict";
-function objectOrFunction(x) {
-  return isFunction(x) || (typeof x === "object" && x !== null);
-}
-
-function isFunction(x) {
-  return typeof x === "function";
-}
-
-function isArray(x) {
-  return Object.prototype.toString.call(x) === "[object Array]";
-}
-
-// Date.now is not available in browsers < IE9
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now#Compatibility
-var now = Date.now || function() { return new Date().getTime(); };
-
-
-exports.objectOrFunction = objectOrFunction;
-exports.isFunction = isFunction;
-exports.isArray = isArray;
-exports.now = now;
-},{}],16:[function(require,module,exports){
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},"/node_modules/jsonld/js")
+},{"_process":7,"crypto":4,"es6-promise":3,"http":4,"jsonld-request":4,"pkginfo":4,"request":4,"util":4,"xmldom":4}],6:[function(require,module,exports){
 // **N3Util** provides N3 utility functions
 
-var XsdString = 'http://www.w3.org/2001/XMLSchema#string';
+var Xsd = 'http://www.w3.org/2001/XMLSchema#';
+var XsdString  = Xsd + 'string';
+var XsdInteger = Xsd + 'integer';
+var XsdDecimal = Xsd + 'decimal';
+var XsdBoolean = Xsd + 'boolean';
 var RdfLangString = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString';
 
 var N3Util = {
-  // Tests whether the given entity (triple object) represents a URI in the N3 library
-  isUri: function (entity) {
+  // Tests whether the given entity (triple object) represents an IRI in the N3 library
+  isIRI: function (entity) {
     if (!entity)
       return entity;
     var firstChar = entity[0];
@@ -9316,7 +10632,7 @@ var N3Util = {
 
   // Gets the type of a literal in the N3 library
   getLiteralType: function (literal) {
-    var match = /^"[^]*"(?:\^\^([^"\^]+)|(@)[^@"]+)?$/.exec(literal);
+    var match = /^"[^]*"(?:\^\^([^"]+)|(@)[^@"]+)?$/.exec(literal);
     if (!match)
       throw new Error(literal + ' is not a literal');
     return match[1] || (match[2] ? RdfLangString : XsdString);
@@ -9324,7 +10640,7 @@ var N3Util = {
 
   // Gets the language of a literal in the N3 library
   getLiteralLanguage: function (literal) {
-    var match = /^"[^]*"(?:@([^@"]+)|\^\^[^"\^]+)?$/.exec(literal);
+    var match = /^"[^]*"(?:@([^@"]+)|\^\^[^"]+)?$/.exec(literal);
     if (!match)
       throw new Error(literal + ' is not a literal');
     return match[1] ? match[1].toLowerCase() : '';
@@ -9335,42 +10651,160 @@ var N3Util = {
     return entity && /^[^:\/"']*:[^:\/"']+$/.test(entity);
   },
 
-  // Expands the prefixed name to a full URI (also when it occurs as a literal's type)
+  // Expands the prefixed name to a full IRI (also when it occurs as a literal's type)
   expandPrefixedName: function (prefixedName, prefixes) {
-    var match = /(?:^|"\^\^)([^:\/#"'\^_]*):[^\/]/.exec(prefixedName);
-    if (!match) return prefixedName;
-
-    var prefix = match[1], base = prefixes[prefix], index = match.index;
+    var match = /(?:^|"\^\^)([^:\/#"'\^_]*):[^\/]*$/.exec(prefixedName), prefix, base, index;
+    if (match)
+      prefix = match[1], base = prefixes[prefix], index = match.index;
     if (base === undefined)
-      throw new Error('Unknown prefix: ' + prefix);
+      return prefixedName;
 
     // The match index is non-zero when expanding a literal's type.
     return index === 0 ? base + prefixedName.substr(prefix.length + 1)
                        : prefixedName.substr(0, index + 3) +
                          base + prefixedName.substr(index + prefix.length + 4);
   },
+
+  // Creates an IRI in N3.js representation
+  createIRI: function (iri) {
+    return iri && iri[0] === '"' ? N3Util.getLiteralValue(iri) : iri;
+  },
+
+  // Creates a literal in N3.js representation
+  createLiteral: function (value, modifier) {
+    if (!modifier) {
+      switch (typeof value) {
+      case 'boolean':
+        modifier = XsdBoolean;
+        break;
+      case 'number':
+        if (isFinite(value)) {
+          modifier = value % 1 === 0 ? XsdInteger : XsdDecimal;
+          break;
+        }
+      default:
+        return '"' + value + '"';
+      }
+    }
+    return '"' + value +
+           (/^[a-z]+(-[a-z0-9]+)*$/i.test(modifier) ? '"@'  + modifier.toLowerCase()
+                                                    : '"^^' + modifier);
+  },
 };
 
 // Add the N3Util functions to the given object or its prototype
-function AddN3Util(parent, toPrototype) {
+function addN3Util(parent, toPrototype) {
   for (var name in N3Util)
     if (!toPrototype)
       parent[name] = N3Util[name];
     else
-      parent.prototype[name] = ApplyToThis(N3Util[name]);
+      parent.prototype[name] = applyToThis(N3Util[name]);
 
   return parent;
 }
 
 // Returns a function that applies `f` to the `this` object
-function ApplyToThis(f) {
+function applyToThis(f) {
   return function (a) { return f(this, a); };
 }
 
 // Expose N3Util, attaching all functions to it
-module.exports = AddN3Util(AddN3Util);
+module.exports = addN3Util(addN3Util);
 
-},{}],17:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = setTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    clearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        setTimeout(drainQueue, 0);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}],8:[function(require,module,exports){
 (function (global){
 
 var rng;
@@ -9405,7 +10839,7 @@ module.exports = rng;
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],18:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 //     uuid.js
 //
 //     Copyright (c) 2010-2012 Robert Kieffer
@@ -9590,5 +11024,5 @@ uuid.unparse = unparse;
 
 module.exports = uuid;
 
-},{"./rng":17}]},{},[1])(1)
+},{"./rng":8}]},{},[1])(1)
 });
