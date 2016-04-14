@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "./node_modules/.bin/mocha --recursive test",
-    "zuul": "zuul -- test",
+    "zuul": "zuul test/*spec.js",
     "coverage": "rm -rf coverage; istanbul cover _mocha -- --recursive --reporter spec --bail",
     "publish-coverage": "cat coverage/lcov.info | coveralls"
   },
@@ -48,7 +48,7 @@
     "lodash": "~2.4.1",
     "coveralls": "~2.11.2",
     "istanbul": "~0.3.2",
-    "zuul": "~1.5.2",
+    "zuul": "~1.13.1",
     "browserify": "~6.3.2",
     "uglify-js": "~2.4.15"
   }
