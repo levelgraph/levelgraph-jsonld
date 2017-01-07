@@ -92,7 +92,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
     }
 
     options.base = options.base || this.options.base;
-    options.preserve = options.preserve || false;
+    options.preserve = options.preserve ||  this.options.preserve || false;
 
     if (!obj['@id'] && !obj['@graph']) {
       obj['@id'] = options.base + uuid.v1();
@@ -107,7 +107,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
       }
     }
 
-    if (options.preserve) {
+    if (options.preserve === true) {
       doPut(obj, options, callback);
     } else {
       graphdb.jsonld.del(obj, options, function(err) {
@@ -127,8 +127,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
       options = {};
     }
 
-    options.preserve = options.preserve || false;
-
+    options.preserve = options.preserve ||  this.options.preserve || false;
 
     if (options.preserve === false) {
       var iri = obj;

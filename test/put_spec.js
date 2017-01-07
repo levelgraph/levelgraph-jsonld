@@ -298,3 +298,32 @@ describe('jsonld.put with default base', function() {
     });
   });
 });
+
+describe('jsonld.put with preserve option', function() {
+
+  var db, manu;
+
+  beforeEach(function() {
+    db = helper.getDB({ jsonld: { base: 'http://levelgraph.io/ahah/', preserve: true } });
+    manu = helper.getFixture('manu.json');
+  });
+
+  afterEach(function(done) {
+    db.close(done);
+  });
+
+  it('should not overwrite existing facts', function(done) {
+    var chapter = helper.getFixture('chapter.json');
+    var description = helper.getFixture('chapterdescription.json');
+
+    db.jsonld.put(chapter, function() {
+      db.jsonld.put(description, function() {
+        db.get({}, function(err, triples) {
+          expect(triples).to.have.length(3);
+          done();
+        });
+      });
+    });
+  });
+
+});
