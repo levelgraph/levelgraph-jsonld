@@ -197,6 +197,30 @@ var getFixture = function(name) {
       },
       "@id": "http://example.org/library/the-republic#introduction",
       "dc:description": "An introductory chapter on The Republic."
+    },
+    "library_framed.json": {
+      "@context": {
+        "dc": "http://purl.org/dc/elements/1.1/",
+        "ex": "http://example.org/vocab#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "ex:contains": {
+          "@type": "@id"
+        }
+      },
+      "@id": "http://example.org/library",
+      "@type": "ex:Library",
+      "ex:contains": {
+        "@id": "http://example.org/library/the-republic",
+        "@type": "ex:Book",
+        "ex:contains": {
+          "@id": "http://example.org/library/the-republic#introduction",
+          "@type": "ex:Chapter",
+          "dc:description": "An introductory chapter on The Republic.",
+          "dc:title": "The Introduction"
+        },
+        "dc:creator": "Plato",
+        "dc:title": "The Republic"
+      }
     }
   };
   return fixtures[name];

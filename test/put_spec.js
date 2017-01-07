@@ -148,7 +148,24 @@ describe('jsonld.put', function() {
           subject: 'http://manu.sporny.org#person',
           predicate: 'http://xmlns.com/foaf/0.1/homepage'
         }, function(err, triples) {
-          expect(triples).to.be.empty;
+          expect(triples).to.have.length(0);
+          done();
+        });
+      });
+    });
+  });
+
+
+  it('should preserve properties with the preserve option', function(done) {
+    db.jsonld.put(manu, function(err, instance) {
+      delete instance.homepage
+
+      db.jsonld.put(instance, { preserve: true }, function() {
+        db.get({
+          subject: 'http://manu.sporny.org#person',
+          predicate: 'http://xmlns.com/foaf/0.1/homepage'
+        }, function(err, triples) {
+          expect(triples).to.have.length(1);
           done();
         });
       });
@@ -177,8 +194,8 @@ describe('jsonld.put', function() {
       "test": { "@value": "foo", "bar": "oh yes" }
     }
     db.jsonld.put(invalid, function(err) {
-      expect(err && err.name).to.equal('jsonld.RdfError');
-      expect(err && err.message).to.equal('Could not expand input before serialization to RDF.');
+      expect(err && err.name).to.equal('jsonld.SyntaxError');
+      expect(err && err.message).to.equal('Invalid JSON-LD syntax; the value of "@vocab" in a @context must be an absolute IRI.');
       done();
     });
   });
@@ -253,12 +270,26 @@ describe('jsonld.put with default base', function() {
     });
   });
 
-  it('should not overwrite existing facts', function(done) {
+  it('should keep the default behavior without the preserve option', function(done) {
     var chapter = helper.getFixture('chapter.json');
     var description = helper.getFixture('chapterdescription.json');
 
     db.jsonld.put(chapter, function() {
       db.jsonld.put(description, function() {
+        db.get({}, function(err, triples) {
+          expect(triples).to.have.length(1);
+          done();
+        });
+      });
+    });
+  });
+
+  it('should not overwrite existing facts with the preserve option', function(done) {
+    var chapter = helper.getFixture('chapter.json');
+    var description = helper.getFixture('chapterdescription.json');
+
+    db.jsonld.put(chapter, function() {
+      db.jsonld.put(description, { preserve: true }, function() {
         db.get({}, function(err, triples) {
           expect(triples).to.have.length(3);
           done();
