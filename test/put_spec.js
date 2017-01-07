@@ -191,7 +191,7 @@ describe('jsonld.put with default base', function() {
   beforeEach(function() {
     db = helper.getDB({ jsonld: { base: 'http://levelgraph.io/ahah/' } });
     manu = helper.getFixture('manu.json');
-  }); 
+  });
 
   afterEach(function(done) {
     db.close(done);
@@ -249,6 +249,20 @@ describe('jsonld.put with default base', function() {
       db.get({}, function(err, triples) {
         expect(triples).to.have.length(5);
         done();
+      });
+    });
+  });
+
+  it('should not overwrite existing facts', function(done) {
+    var chapter = helper.getFixture('chapter.json');
+    var description = helper.getFixture('chapterdescription.json');
+
+    db.jsonld.put(chapter, function() {
+      db.jsonld.put(description, function() {
+        db.get({}, function(err, triples) {
+          expect(triples).to.have.length(3);
+          done();
+        });
       });
     });
   });

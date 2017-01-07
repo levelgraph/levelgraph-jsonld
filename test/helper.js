@@ -178,10 +178,26 @@ var getFixture = function(name) {
         "http://dbpedia.org/class/yago/Onomatopoeias" ,
         "http://dbpedia.org/class/yago/Abstraction100002137" ,
         "http://dbpedia.org/class/yago/Device107068844" ,
-        "http://dbpedia.org/class/yago/RhetoricalDevice107098193" 
+        "http://dbpedia.org/class/yago/RhetoricalDevice107098193"
       ]
+    },
+    "chapter.json": {
+      "@context": {
+        "dc": "http://purl.org/dc/elements/1.1/",
+        "ex": "http://example.org/vocab#"
+      },
+      "@id": "http://example.org/library/the-republic#introduction",
+      "@type": "ex:Chapter",
+      "dc:title": "The Introduction"
+    },
+    "chapterdescription.json": {
+      "@context": {
+        "dc": "http://purl.org/dc/elements/1.1/",
+        "ex": "http://example.org/vocab#"
+      },
+      "@id": "http://example.org/library/the-republic#introduction",
+      "dc:description": "An introductory chapter on The Republic."
     }
-
   };
   return fixtures[name];
 };
