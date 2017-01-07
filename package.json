@@ -39,16 +39,16 @@
     "n3": "~0.4.5"
   },
   "peerDependencies": {
-    "levelgraph": "~1.1.1"
+    "levelgraph": "^1.3.1"
   },
   "devDependencies": {
     "browserify": "~13.0.0",
     "chai": "~3.5.0",
     "coveralls": "~2.11.8",
     "istanbul": "~0.4.2",
-    "level-test": "~1.7.0",
+    "level-test": "~2.0.2",
     "leveldown": "^1.4.4",
-    "levelgraph": "~1.1.1",
+    "levelgraph": "^1.3.1",
     "lodash": "~2.4.1",
     "mocha": "~2.4.5",
     "uglify-js": "~2.6.2",
