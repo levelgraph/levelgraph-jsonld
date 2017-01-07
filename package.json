@@ -48,7 +48,7 @@
     "istanbul": "~0.4.2",
     "level-test": "~1.7.0",
     "leveldown": "^1.4.4",
-    "levelgraph": "~1.1.1"
+    "levelgraph": "~1.1.1",
     "lodash": "~2.4.1",
     "mocha": "~2.4.5",
     "uglify-js": "~2.6.2",
