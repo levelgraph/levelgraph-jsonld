@@ -70,13 +70,11 @@ describe('jsonld.put', function() {
     var baseString = 'http://levelgraph.org/tests/';
     var baseRegEx = /^http:\/\/levelgraph.org\/tests\//;
 
-    db.jsonld.put(manu, { base: baseString }, function(err, obj) {
-      console.log(obj)
-      db.search([{
+    db.jsonld.put(manu, { base: baseString }, function() {
+      db.search({
         subject: db.v('subject'),
         predicate: 'http://xmlns.com/foaf/0.1/name'
-      }], function(err, solutions) {
-        console.log(solutions)
+      }, function(err, solutions) {
         expect(solutions[0].subject).to.match(baseRegEx);
         done();
       });
@@ -193,7 +191,7 @@ describe('jsonld.put with default base', function() {
   beforeEach(function() {
     db = helper.getDB({ jsonld: { base: 'http://levelgraph.io/ahah/' } });
     manu = helper.getFixture('manu.json');
-  });
+  }); 
 
   afterEach(function(done) {
     db.close(done);
