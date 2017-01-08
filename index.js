@@ -107,16 +107,12 @@ function levelgraphJSONLD(db, jsonldOpts) {
       }
     }
 
-    if (options.preserve === true) {
+    graphdb.jsonld.del(obj, options, function(err) {
+      if (err) {
+        return callback && callback(err);
+      }
       doPut(obj, options, callback);
-    } else {
-      graphdb.jsonld.del(obj, options, function(err) {
-        if (err) {
-          return callback && callback(err);
-        }
-        doPut(obj, options, callback);
-      });
-    }
+    });
   };
 
   graphdb.jsonld.del = function(obj, options, callback) {
