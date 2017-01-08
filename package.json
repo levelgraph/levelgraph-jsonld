@@ -46,7 +46,7 @@
     "chai": "~3.5.0",
     "coveralls": "~2.11.8",
     "istanbul": "~0.4.2",
-    "level-test": "~2.0.2",
+    "level-test": "~1.7.0",
     "leveldown": "^1.5.3",
     "levelgraph": "~1.1.1",
     "lodash": "^4.17.4",
