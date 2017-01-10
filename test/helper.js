@@ -1,5 +1,5 @@
 var fs       = require('fs'),
-    level    = require('level-test')(),
+    level    = require('memdb'),
     graph    = require('levelgraph'),
     jsonld   = require('../'),
     _        = require('lodash');
@@ -178,7 +178,7 @@ var getFixture = function(name) {
         "http://dbpedia.org/class/yago/Onomatopoeias" ,
         "http://dbpedia.org/class/yago/Abstraction100002137" ,
         "http://dbpedia.org/class/yago/Device107068844" ,
-        "http://dbpedia.org/class/yago/RhetoricalDevice107098193" 
+        "http://dbpedia.org/class/yago/RhetoricalDevice107098193"
       ]
     }
 
