@@ -1,6 +1,6 @@
 {
   "name": "levelgraph-jsonld",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "The Object Document Mapper for LevelGraph based on JSON-LD",
   "main": "index.js",
   "scripts": {
