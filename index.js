@@ -94,25 +94,32 @@ function levelgraphJSONLD(db, jsonldOpts) {
     options.base = options.base || this.options.base;
     options.preserve = options.preserve ||  this.options.preserve || false;
 
-    if (!obj['@id'] && !obj['@graph']) {
-      obj['@id'] = options.base + uuid.v1();
-      options.preserve = true;
-    }
+    jsonld.expand(obj, options, function(err, expanded) {
 
-    if (options.base) {
-      if (obj['@context']) {
-        obj['@context']['@base'] = options.base;
-      } else {
-        obj['@context'] = { '@base' : options.base };
-      }
-    }
+      console.log("put expanded")
+      console.log(expanded)
 
-    graphdb.jsonld.del(obj, options, function(err) {
-      if (err) {
-        return callback && callback(err);
+      if (!expanded['@id'] && !expanded['@graph']) {
+        expanded['@id'] = options.base + uuid.v1();
+        options.preserve = true;
       }
-      doPut(obj, options, callback);
-    });
+
+      if (options.base) {
+        if (expanded['@context']) {
+          expanded['@context']['@base'] = options.base;
+        } else {
+          expanded['@context'] = { '@base' : options.base };
+        }
+      }
+
+      graphdb.jsonld.del(expanded, options, function(err) {
+        if (err) {
+          return callback && callback(err);
+        }
+        doPut(expanded, options, callback);
+      });
+    })
+
   };
 
   graphdb.jsonld.del = function(obj, options, callback) {
