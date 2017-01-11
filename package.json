@@ -48,7 +48,7 @@
     "coveralls": "~2.11.8",
     "istanbul": "~0.4.2",
     "leveldown": "^1.5.3",
-    "levelgraph": "iilab/levelgraph#singleton-search",
+    "levelgraph": "^2.0.0",
     "lodash": "^4.17.4",
     "mocha": "^3.2.0",
     "uglify-js": "^2.7.5",
