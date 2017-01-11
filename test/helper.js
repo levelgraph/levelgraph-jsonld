@@ -221,6 +221,52 @@ var getFixture = function(name) {
         "dc:creator": "Plato",
         "dc:title": "The Republic"
       }
+    },
+    "library.json": {
+      "@context": {
+        "dc": "http://purl.org/dc/elements/1.1/",
+        "ex": "http://example.org/vocab#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "ex:contains": {
+          "@type": "@id"
+        }
+      },
+      "@graph": [
+        {
+          "@id": "http://example.org/library",
+          "@type": "ex:Library",
+          "ex:contains": "http://example.org/library/the-republic"
+        },
+        {
+          "@id": "http://example.org/library/the-republic",
+          "@type": "ex:Book",
+          "dc:creator": "Plato",
+          "dc:title": "The Republic",
+          "ex:contains": "http://example.org/library/the-republic#introduction"
+        },
+        {
+          "@id": "http://example.org/library/the-republic#introduction",
+          "@type": "ex:Chapter",
+          "dc:description": "An introductory chapter on The Republic.",
+          "dc:title": "The Introduction"
+        }
+      ]
+    },
+    "mapped_id.json": {
+      "@context": {
+        "id": "@id",
+        "@vocab": "http://xmlns.com/foaf/0.1/"
+      },
+      "id": "http://bigbluehat.com/#",
+      "name": "BigBlueHat",
+      "knows": [
+
+        {
+          "id": "http://manu.sporny.org#person",
+          "name": "Manu Sporny",
+          "homepage": "http://manu.sporny.org/"
+        }
+      ]
     }
   };
   return fixtures[name];

@@ -68,7 +68,7 @@ describe('jsonld.put', function() {
   it('should generate an @id for unknown objects', function(done) {
     delete manu['@id'];
     var baseString = 'http://levelgraph.org/tests/';
-    var baseRegEx = /^http:\/\/levelgraph.org\/tests\//;
+    var baseRegEx = /^_\:/;
 
     db.jsonld.put(manu, { base: baseString }, function() {
       db.search({
@@ -81,10 +81,20 @@ describe('jsonld.put', function() {
     });
   });
 
+  it('should generate an @id for all blank nodes in a complex object', function(done) {
+    var tesla = helper.getFixture('tesla.json');
+
+    db.jsonld.put(tesla, function(err, obj) {
+      expect(obj['gr:hasPriceSpecification']['@id']).to.match(/^_\:/);
+      expect(obj['gr:includes']['@id']).to.match(/^_\:/);
+      done();
+    });
+  });
+
   it('should pass the generated @id to callback', function(done) {
     delete manu['@id'];
     var baseString = 'http://levelgraph.org/tests/';
-    var baseRegEx = /^http:\/\/levelgraph.org\/tests\//;
+    var baseRegEx = /^_\:/;
 
     db.jsonld.put(manu, { base: baseString }, function(err, obj) {
       expect(obj['@id']).to.match(baseRegEx);
@@ -199,6 +209,29 @@ describe('jsonld.put', function() {
       done();
     });
   });
+
+  it('should manage mapped @id', function(done) {
+    var mapped_id = helper.getFixture('mapped_id.json')
+    db.jsonld.put(mapped_id, {preserve: true}, function(err, obj) {
+      expect(err && err.name).to.be.null;
+      db.get({}, function(err, triples) {
+        expect(triples).to.have.length(4);
+        done();
+      });
+    });
+  });
+
+  it('should insert graphs', function(done) {
+    var library = helper.getFixture('library.json');
+
+    db.jsonld.put(library, function() {
+      db.get({}, function(err, triples) {
+        expect(triples).to.have.length(9);
+        done();
+      });
+    });
+  });
+
 });
 
 describe('jsonld.put with default base', function() {
@@ -297,6 +330,18 @@ describe('jsonld.put with default base', function() {
       });
     });
   });
+
+  it('should insert graphs', function(done) {
+    var library = helper.getFixture('library.json');
+
+    db.jsonld.put(library, function() {
+      db.get({}, function(err, triples) {
+        expect(triples).to.have.length(9);
+        done();
+      });
+    });
+  });
+
 });
 
 describe('jsonld.put with base and preserve option', function() {
@@ -367,7 +412,7 @@ describe('jsonld.put with base and preserve option', function() {
   it('should generate an @id for unknown objects', function(done) {
     delete manu['@id'];
     var baseString = 'http://levelgraph.org/tests/';
-    var baseRegEx = /^http:\/\/levelgraph.org\/tests\//;
+    var baseRegEx = /^_\:/;
 
     db.jsonld.put(manu, { base: baseString }, function() {
       db.search({
@@ -383,7 +428,7 @@ describe('jsonld.put with base and preserve option', function() {
   it('should pass the generated @id to callback', function(done) {
     delete manu['@id'];
     var baseString = 'http://levelgraph.org/tests/';
-    var baseRegEx = /^http:\/\/levelgraph.org\/tests\//;
+    var baseRegEx = /^_\:/;
 
     db.jsonld.put(manu, { base: baseString }, function(err, obj) {
       expect(obj['@id']).to.match(baseRegEx);
@@ -556,6 +601,17 @@ describe('jsonld.put with base and preserve option', function() {
           expect(triples).to.have.length(3);
           done();
         });
+      });
+    });
+  });
+
+  it('should insert graphs', function(done) {
+    var library = helper.getFixture('library.json');
+
+    db.jsonld.put(library, function() {
+      db.get({}, function(err, triples) {
+        expect(triples).to.have.length(9);
+        done();
       });
     });
   });

@@ -28,6 +28,13 @@ function levelgraphJSONLD(db, jsonldOpts) {
       if (err) {
         return callback && callback(err);
       }
+      if (options.base) {
+        if (expanded['@context']) {
+          expanded['@context']['@base'] = options.base;
+        } else {
+          expanded['@context'] = { '@base' : options.base };
+        }
+      }
 
       jsonld.toRDF(expanded, options, function(err, triples) {
         if (err || triples.length === 0) {
@@ -38,7 +45,45 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
         stream.on('error', callback);
         stream.on('close', function() {
-          callback(null, obj);
+
+          var blank_keys = Object.keys(blanks);
+          var clone_obj = Object.assign({}, obj)
+          var frame;
+          frame = (function framify(o) {
+            Object.keys(o).map(function(key) {
+              if (Array.isArray(o[key]) && key != "@type") {
+                o[key] = o[key][0];
+              } else if (typeof o[key] === "object") {
+                o[key] = framify(o[key]);
+              }
+            })
+            return o;
+          })(clone_obj)
+
+          if (blank_keys.length != 0) {
+            jsonld.frame(obj, frame, function(err, framed) {
+              if (err) {
+                return callback(err, null);
+              }
+              var framed_string = JSON.stringify(framed);
+
+              blank_keys.forEach(function(blank) {
+                framed_string = framed_string.replace(blank,blanks[blank])
+              })
+              var ided = JSON.parse(framed_string);
+              if (ided["@graph"].length == 1) {
+                var clean_reframe = Object.assign({}, { "@context": ided["@context"]}, ided["@graph"][0]);
+                return callback(null, clean_reframe);
+              } else if (ided["@graph"].length > 1) {
+                return callback(null, ided);
+              } else {
+                // Could not reframe the input, returning the original object
+                return callback(null, obj);
+              }
+            })
+          } else {
+            return callback(null, obj);
+          }
         });
 
         triples['@default'].map(function(triple) {
@@ -80,6 +125,71 @@ function levelgraphJSONLD(db, jsonldOpts) {
     });
   }
 
+  function doDel(obj, options, callback) {
+    var blanks = {};
+
+    jsonld.expand(obj, options, function(err, expanded) {
+      if (err) {
+        return callback && callback(err);
+      }
+
+      var stream  = graphdb.delStream();
+      stream.on('close', callback);
+      stream.on('error', callback);
+      if (options.base) {
+        if (expanded['@context']) {
+          expanded['@context']['@base'] = options.base;
+        } else {
+          expanded['@context'] = { '@base' : options.base };
+        }
+      }
+
+      jsonld.toRDF(expanded, options, function(err, triples) {
+        if (err || triples.length === 0) {
+          return callback(err, null);
+        }
+
+        triples['@default'].map(function(triple) {
+
+          return ['subject', 'predicate', 'object'].reduce(function(acc, key) {
+            var node = triple[key];
+            // mark blank nodes to skip deletion as per https://www.w3.org/TR/ldpatch/#Delete-statement
+            // uses type field set to 'blank node' by jsonld.js toRDF()
+            if (node.type === 'blank node') {
+              if (!blanks[node.value]) {
+                blanks[node.value] = '_:';
+              }
+              node.value = blanks[node.value];
+            }
+            // preserve object data types using double quotation for literals
+            // and don't keep data type for strings without defined language
+            if(key === 'object' && triple.object.datatype){
+              if(triple.object.datatype.match(XSDTYPE)){
+                if(triple.object.datatype === 'http://www.w3.org/2001/XMLSchema#string'){
+                  node.value = '"' + triple.object.value + '"';
+                } else {
+                  node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
+                }
+              } else if(triple.object.datatype.match(RDFLANGSTRING)){
+                node.value = '"' + triple.object.value + '"@' + triple.object.language;
+              } else {
+                node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
+              }
+            }
+            acc[key] = node.value;
+            return acc;
+          }, {});
+        }).forEach(function(triple) {
+          // Skip marked blank nodes.
+          if (triple.subject.indexOf('_:') !== 0 && triple.object.indexOf('_:') !== 0) {
+            stream.write(triple);
+          }
+        });
+        stream.end();
+      });
+    })
+  }
+
   graphdb.jsonld.put = function(obj, options, callback) {
 
     if (typeof obj === 'string') {
@@ -94,32 +204,12 @@ function levelgraphJSONLD(db, jsonldOpts) {
     options.base = options.base || this.options.base;
     options.preserve = options.preserve ||  this.options.preserve || false;
 
-    jsonld.expand(obj, options, function(err, expanded) {
-
-      console.log("put expanded")
-      console.log(expanded)
-
-      if (!expanded['@id'] && !expanded['@graph']) {
-        expanded['@id'] = options.base + uuid.v1();
-        options.preserve = true;
+    graphdb.jsonld.del(obj, options, function(err) {
+      if (err) {
+        return callback && callback(err);
       }
-
-      if (options.base) {
-        if (expanded['@context']) {
-          expanded['@context']['@base'] = options.base;
-        } else {
-          expanded['@context'] = { '@base' : options.base };
-        }
-      }
-
-      graphdb.jsonld.del(expanded, options, function(err) {
-        if (err) {
-          return callback && callback(err);
-        }
-        doPut(expanded, options, callback);
-      });
-    })
-
+      doPut(obj, options, callback);
+    });
   };
 
   graphdb.jsonld.del = function(obj, options, callback) {
@@ -160,59 +250,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
         stream.end();
       });
     } else {
-      jsonld.expand(obj, function(err, expanded) {
-        if (err) {
-          return callback && callback(err);
-        }
-
-        var stream  = graphdb.delStream();
-        stream.on('close', callback);
-        stream.on('error', callback);
-
-        jsonld.toRDF(expanded, options, function(err, triples) {
-          if (err || triples.length === 0) {
-            return callback(err, null);
-          }
-
-          triples['@default'].map(function(triple) {
-
-            return ['subject', 'predicate', 'object'].reduce(function(acc, key) {
-              var node = triple[key];
-              // mark blank nodes to skip deletion as per https://www.w3.org/TR/ldpatch/#Delete-statement
-              // uses type field set to 'blank node' by jsonld.js toRDF()
-              if (node.type === 'blank node') {
-                if (!blanks[node.value]) {
-                  blanks[node.value] = '_:';
-                }
-                node.value = blanks[node.value];
-              }
-              // preserve object data types using double quotation for literals
-              // and don't keep data type for strings without defined language
-              if(key === 'object' && triple.object.datatype){
-                if(triple.object.datatype.match(XSDTYPE)){
-                  if(triple.object.datatype === 'http://www.w3.org/2001/XMLSchema#string'){
-                    node.value = '"' + triple.object.value + '"';
-                  } else {
-                    node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
-                  }
-                } else if(triple.object.datatype.match(RDFLANGSTRING)){
-                  node.value = '"' + triple.object.value + '"@' + triple.object.language;
-                } else {
-                  node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
-                }
-              }
-              acc[key] = node.value;
-              return acc;
-            }, {});
-          }).forEach(function(triple) {
-            // Skip marked blank nodes.
-            if (triple.subject.indexOf('_:') !== 0 && triple.object.indexOf('_:') !== 0) {
-              stream.write(triple);
-            }
-          });
-          stream.end();
-        });
-      })
+      doDel(obj, options, callback)
     }
   };
 
@@ -289,12 +327,32 @@ function levelgraphJSONLD(db, jsonldOpts) {
           } else if (N3Util.isLiteral(triple.object)) {
             object = getCoercedObject(triple.object);
           }
-          if(acc[triple.subject][triple.predicate]){
+          if(object['@id']) {
+            fetchExpandedTriples(triple.object, function(err, expanded) {
+              if (expanded !== null && !acc[triple.subject][triple.predicate]) {
+                acc[triple.subject][triple.predicate] = expanded[triple.object];
+              } else if (expanded !== null) {
+                if (!acc[triple.subject][triple.predicate].push) {
+                  acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
+                }
+                acc[triple.subject][triple.predicate].push(expanded[triple.object]);
+              } else {
+                if (acc[triple.subject][triple.predicate]){
+                  acc[triple.subject][triple.predicate].push(object);
+                } else {
+                  acc[triple.subject][triple.predicate] = [object];
+                }
+              }
+              cb(err, acc);
+            });
+          }
+          else if (acc[triple.subject][triple.predicate]){
             acc[triple.subject][triple.predicate].push(object);
+            cb(err, acc);
           } else {
             acc[triple.subject][triple.predicate] = [object];
+            cb(err, acc);
           }
-          cb(null, acc);
         } else {
           fetchExpandedTriples(triple.object, function(err, expanded) {
             if (expanded !== null && !acc[triple.subject][triple.predicate]) {

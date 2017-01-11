@@ -54,7 +54,6 @@ describe('jsonld.get', function() {
 
   it('should support nested objects', function(done) {
     var nested = helper.getFixture('nested.json');
-
     db.jsonld.put(nested, function(err, obj) {
       db.jsonld.get(obj['@id'], { '@context': obj['@context'] }, function(err, result) {
         delete result['knows'][0]['@id'];
