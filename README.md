@@ -67,6 +67,31 @@ var levelup = require("levelup"),
     db = levelgraphJSONLD(levelgraph(yourDB));
 ```
 
+`'base'` can also be specified when you create the db:
+```javascript
+var levelup    = require("levelup"),
+    yourDB     = levelup("./yourdb"),
+    levelgraph = require('levelgraph'),
+    jsonld     = require('levelgraph-jsonld'),
+    opts       = { base: 'http://matteocollina.com/base' },
+    db         = jsonld(levelgraph(yourDB), opts);
+```
+
+By default `update`s (and `delete`s) **delete all triples associated to the `@id` of the document before updating it**, the `'preserve'` option will ensure that all `put`s and `delete`s only update the triples that are mentioned in the document:
+
+
+```javascript
+var levelup    = require("levelup"),
+    yourDB     = levelup("./yourdb"),
+    levelgraph = require('levelgraph'),
+    jsonld     = require('levelgraph-jsonld'),
+    opts       = {
+                   base: 'http://matteocollina.com/base',
+                   preserve: true
+                 },
+    db         = jsonld(levelgraph(yourDB), opts);
+```
+
 ### Put
 
 Please keep in mind that LevelGraph-JSONLD __doesn't store the original
@@ -105,15 +130,7 @@ db.jsonld.put(manu, { base: 'http://this/is/an/iri' }, function(err, obj) {
 });
 ```
 
-`'base'` can also be specified when you create the db:
-```javascript
-var levelup    = require("levelup"),
-    yourDB     = levelup("./yourdb"),
-    levelgraph = require('levelgraph'),
-    jsonld     = require('levelgraph-jsonld'),
-    opts       = { base: 'http://matteocollina.com/base' },
-    db         = jsonld(levelgraph(yourDB), opts);
-```
+`'base'` can also be [specified when you create the db](#usage).
 
 __LevelGraph-JSONLD__ also support nested objects, like so:
 ```javascript
@@ -132,6 +149,14 @@ var nested = {
 };
 
 db.jsonld.put(nested, function(err, obj) {
+  // do something...
+});
+```
+
+By default, `put` **deletes all triples associated to the `@id` of the document before updating it**. If you want to instead only update the triples that are part of the document you can use the `{ preserve : true }` option (you can also [set it globally when you create the DB](#usage)):
+
+```javascript
+db.jsonld.put(nested, { preserve : true }, function(err, obj) {
   // do something...
 });
 ```
@@ -166,7 +191,7 @@ var nested = {
 };
 
 db.jsonld.put(nested, function(err, obj) {
-  // obj will be 
+  // obj will be
   // {
   //   "@context": {
   //     "name": "http://xmlns.com/foaf/0.1/name",
@@ -192,6 +217,14 @@ In order to delete an object, you can just pass it's `'@id'` to the
 ```javascript
 db.jsonld.del(manu['@id'], function(err) {
   // do something after it is deleted!
+});
+```
+
+By default, `del` **deletes all triples associated to the `@id`**. If you want to instead only delete the triples that are part of the document, you can use the `{ preserve : true }` option (you can also [set it globally when you create the DB](#usage)):
+
+```javascript
+db.jsonld.del(nested, { preserve : true }, function(err) {
+  // do something...
 });
 ```
 
