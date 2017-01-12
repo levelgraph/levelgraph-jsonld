@@ -125,4 +125,19 @@ describe('jsonld.del', function() {
       });
     });
   });
+
+
+  it('should del a nested object returned from the put callback', function(done) {
+    var nested = helper.getFixture('nested.json');
+
+    db.jsonld.put(nested, function(err, inserted) {
+      db.jsonld.del(nested, { preserve: true }, function() {
+        db.get({}, function(err, triples) {
+          // getting the full db
+          expect(triples).to.have.length(0); // 2 triples from Manu and 8 from tesla blanks.
+          done();
+        });
+      });
+    });
+  });
 });
