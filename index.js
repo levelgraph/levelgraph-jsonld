@@ -337,7 +337,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
                 }
                 acc[triple.subject][triple.predicate].push(expanded[triple.object]);
               } else {
-                if (acc[triple.subject][triple.predicate]){
+                if (Array.isArray(acc[triple.subject][triple.predicate])){
                   acc[triple.subject][triple.predicate].push(object);
                 } else {
                   acc[triple.subject][triple.predicate] = [object];
@@ -346,7 +346,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
               cb(err, acc);
             });
           }
-          else if (acc[triple.subject][triple.predicate]){
+          else if (Array.isArray(acc[triple.subject][triple.predicate])){
             acc[triple.subject][triple.predicate].push(object);
             cb(err, acc);
           } else {
@@ -358,7 +358,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
             if (expanded !== null && !acc[triple.subject][triple.predicate]) {
               acc[triple.subject][triple.predicate] = expanded[triple.object];
             } else if (expanded !== null) {
-              if (!acc[triple.subject][triple.predicate].push) {
+              if (!Array.isArray(acc[triple.subject][triple.predicate])) {
                 acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
               }
               acc[triple.subject][triple.predicate].push(expanded[triple.object]);
