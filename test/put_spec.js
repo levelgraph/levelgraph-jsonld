@@ -331,10 +331,8 @@ describe('jsonld.put with default base', function() {
     });
   });
 
-  it('should insert graphs yo', function(done) {
+  it('should insert graphs', function(done) {
     var library = helper.getFixture('library.json');
-
-    console.log(library)
 
     db.jsonld.put(library, function() {
       db.get({}, function(err, triples) {
