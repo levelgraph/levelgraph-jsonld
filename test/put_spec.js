@@ -331,8 +331,10 @@ describe('jsonld.put with default base', function() {
     });
   });
 
-  it('should insert graphs', function(done) {
+  it('should insert graphs yo', function(done) {
     var library = helper.getFixture('library.json');
+
+    console.log(library)
 
     db.jsonld.put(library, function() {
       db.get({}, function(err, triples) {
@@ -616,4 +618,31 @@ describe('jsonld.put with base and preserve option', function() {
     });
   });
 
+  it('should insert not overwrite existing node with a blank node', function(done) {
+    var existing = {"@context": { "@vocab": "https://schema.org/"}, "@id": "http://bigbluehat.com/#", "name": "BigBlueHat"};
+    var blank = {"@context": { "@vocab": "https://schema.org/"}, "name": "BigBlueHat"};
+
+    db.jsonld.put(existing, function() {
+      db.jsonld.put(blank, function() {
+        db.get({}, function(err, triples) {
+          expect(triples).to.have.length(2);
+          done();
+        });
+      });
+    });
+  });
+
+  it('should accept @context strings', function(done) {
+    var existing = {"@context": "https://schema.org/", "@id": "http://bigbluehat.com/#", "name": "BigBlueHat"};
+    var blank = {"@context": "https://schema.org/", "name": "BigBlueHat"};
+
+    db.jsonld.put(existing, function() {
+      db.jsonld.put(blank, function() {
+        db.get({}, function(err, triples) {
+          expect(triples).to.have.length(2);
+          done();
+        });
+      });
+    });
+  });
 });
