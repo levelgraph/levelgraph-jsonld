@@ -154,11 +154,12 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
           return ['subject', 'predicate', 'object'].reduce(function(acc, key) {
             var node = triple[key];
-            // mark blank nodes to skip deletion as per https://www.w3.org/TR/ldpatch/#Delete-statement
+            console.log(node)
+            // mark non stored blank nodes to skip deletion as per https://www.w3.org/TR/ldpatch/#Delete-statement
             // uses type field set to 'blank node' by jsonld.js toRDF()
             if (node.type === 'blank node') {
               if (!blanks[node.value]) {
-                blanks[node.value] = '_:';
+                blanks[node.value] = '_:b';
               }
               node.value = blanks[node.value];
             }
@@ -182,7 +183,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
           }, {});
         }).forEach(function(triple) {
           // Skip marked blank nodes.
-          if (triple.subject.indexOf('_:') !== 0 && triple.object.indexOf('_:') !== 0) {
+          if (triple.subject.indexOf('_:b') !== 0 && triple.object.indexOf('_:b') !== 0) {
             stream.write(triple);
           }
         });
@@ -235,6 +236,8 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
       (function delAllTriples(iri, done) {
         graphdb.get({ subject: iri }, function(err, triples) {
+          console.log("delAllTriples triples")
+          console.log(triples)
           async.each(triples, function(triple, cb) {
             stream.write(triple);
             if (triple.object.indexOf('_:') === 0) {
@@ -338,7 +341,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
                 }
                 acc[triple.subject][triple.predicate].push(expanded[triple.object]);
               } else {
-                if (acc[triple.subject][triple.predicate]){
+                if (Array.isArray(acc[triple.subject][triple.predicate])){
                   acc[triple.subject][triple.predicate].push(object);
                 } else {
                   acc[triple.subject][triple.predicate] = [object];
@@ -347,7 +350,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
               cb(err, acc);
             });
           }
-          else if (acc[triple.subject][triple.predicate]){
+          else if (Array.isArray(acc[triple.subject][triple.predicate])){
             acc[triple.subject][triple.predicate].push(object);
             cb(err, acc);
           } else {
@@ -359,7 +362,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
             if (expanded !== null && !acc[triple.subject][triple.predicate]) {
               acc[triple.subject][triple.predicate] = expanded[triple.object];
             } else if (expanded !== null) {
-              if (!acc[triple.subject][triple.predicate].push) {
+              if (!Array.isArray(acc[triple.subject][triple.predicate])) {
                 acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
               }
               acc[triple.subject][triple.predicate].push(expanded[triple.object]);
