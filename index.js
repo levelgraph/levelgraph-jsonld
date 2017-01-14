@@ -127,7 +127,6 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
   function doDel(obj, options, callback) {
     var blanks = {};
-
     jsonld.expand(obj, options, function(err, expanded) {
       if (err) {
         return callback && callback(err);
@@ -136,6 +135,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
       var stream  = graphdb.delStream();
       stream.on('close', callback);
       stream.on('error', callback);
+
       if (options.base) {
         if (expanded['@context']) {
           expanded['@context']['@base'] = options.base;
@@ -190,6 +190,38 @@ function levelgraphJSONLD(db, jsonldOpts) {
     })
   }
 
+  function doCut(obj, options, callback) {
+    var iri = obj;
+    if (typeof obj !=='string') {
+      iri = obj['@id'];
+    }
+    if (iri === undefined) {
+      return callback && callback(null);
+    }
+
+    var stream = graphdb.delStream();
+    stream.on('close', callback);
+    stream.on('error', callback);
+
+    (function delAllTriples(iri, done) {
+      graphdb.get({ subject: iri }, function(err, triples) {
+        async.each(triples, function(triple, cb) {
+          stream.write(triple);
+          if (triple.object.indexOf('_:') === 0 || (options.recurse && N3Util.isIRI(triple.object))) {
+            delAllTriples(triple.object, cb);
+          } else {
+            cb();
+          }
+        }, done);
+      });
+    })(iri, function(err) {
+      if (err) {
+        return callback(err);
+      }
+      stream.end();
+    });
+  }
+
   graphdb.jsonld.put = function(obj, options, callback) {
 
     if (typeof obj === 'string') {
@@ -202,68 +234,59 @@ function levelgraphJSONLD(db, jsonldOpts) {
     }
 
     options.base = options.base || this.options.base;
-    options.preserve = options.preserve ||  this.options.preserve || false;
+    options.overwrite = options.overwrite !== undefined ? options.overwrite : ( this.options.overwrite !== undefined ? this.options.overwrite : false );
 
-    graphdb.jsonld.del(obj, options, function(err) {
-      if (err) {
-        return callback && callback(err);
-      }
+    if (!options.overwrite) {
       doPut(obj, options, callback);
-    });
+    } else {
+      graphdb.jsonld.del(obj, options, function(err) {
+        if (err) {
+          return callback && callback(err);
+        }
+      });
+      doPut(obj, options, callback);
+    }
   };
 
   graphdb.jsonld.del = function(obj, options, callback) {
-    var blanks = {};
-
-    if (typeof obj === 'string') {
-      try {
-        obj = JSON.parse(obj);
-      } catch (e) {
-        // Handle case where we're trying to delete by passing an IRI
-        if (!N3Util.isIRI(obj)) {
-          throw e
-        }
-      }
-    }
 
     if (typeof options === 'function') {
       callback = options;
       options = {};
     }
 
-    options.preserve = options.preserve ||  this.options.preserve || false;
+    options.cut = options.cut !== undefined ? options.cut : ( this.options.cut !== undefined ? this.options.cut : false );
+    options.recurse = options.recurse !== undefined ? options.recurse : ( this.options.recurse !== undefined ? this.options.recurse : false );
 
-    if (options.preserve === false) {
-      var iri = obj;
-      if (typeof obj !=='string') {
-        iri = obj['@id'];
-      }
-
-      var stream = graphdb.delStream();
-      stream.on('close', callback);
-      stream.on('error', callback);
-
-      (function delAllTriples(iri, done) {
-        graphdb.get({ subject: iri }, function(err, triples) {
-          async.each(triples, function(triple, cb) {
-            stream.write(triple);
-            if (triple.object.indexOf('_:') === 0) {
-              delAllTriples(triple.object, cb);
-            } else {
-              cb();
-            }
-          }, done);
-        });
-      })(iri, function(err) {
-        if (err) {
-          return callback(err);
+    if (typeof obj === 'string') {
+      try {
+        obj = JSON.parse(obj);
+      } catch (e) {
+        if (N3Util.isIRI(obj) && !options.cut) {
+          callback(new Error("Passing an IRI to del is not supported anymore. Please pass a JSON-LD document."))
         }
-        stream.end();
-      });
-    } else {
+      }
+    }
+
+    if (!options.cut) {
       doDel(obj, options, callback)
+    } else {
+      doCut(obj, options, callback)
     }
   };
+
+
+  graphdb.jsonld.cut = function(obj, options, callback) {
+
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+
+    options.recurse = options.recurse ||  this.options.recurse || false;
+
+    doCut(obj, options, callback);
+  }
 
   // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
   function getCoercedObject(object) {
