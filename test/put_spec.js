@@ -282,12 +282,12 @@ describe('jsonld.put', function() {
     })
   })
 
-  it('should insert a complex named graph', function(done) {
-    var named_graph = helper.getFixture('named_graph.json');
+  it('should insert a document with multiple named graph', function(done) {
+    var three_graphs = helper.getFixture('three_graphs.json');
 
-    db.jsonld.put(named_graph, function() {
+    db.jsonld.put(three_graphs, function() {
       db.get({}, function(err, triples) {
-        expect(triples).to.have.length(7);
+        expect(triples).to.have.length(3);
         done();
       });
     })
