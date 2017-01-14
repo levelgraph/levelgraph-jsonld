@@ -125,4 +125,20 @@ describe('jsonld.del', function() {
       });
     });
   });
+
+  it('should del obj passed as stringified JSON', function(done) {
+    var jld = {"@context": { "@vocab": "https://schema.org/"}, "name": "BigBlueHat"};
+
+    db.jsonld.put(JSON.stringify(jld), {preserve:true}, function() {
+      db.jsonld.del(JSON.stringify(jld), {preserve:true}, function(err) {
+        expect(err).to.not.exist;
+        db.get({}, function(err, triples) {
+          // getting the full db
+          expect(triples).to.have.length(1);
+          done();
+        });
+      });
+    });
+  });
+
 });
