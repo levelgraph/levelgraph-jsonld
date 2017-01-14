@@ -77,20 +77,10 @@ var levelup    = require("levelup"),
     db         = jsonld(levelgraph(yourDB), opts);
 ```
 
-By default `update`s (and `delete`s) **delete all triples associated to the `@id` of the document before updating it**, the `'preserve'` option will ensure that all `put`s and `delete`s only update the triples that are mentioned in the document:
-
-
-```javascript
-var levelup    = require("levelup"),
-    yourDB     = levelup("./yourdb"),
-    levelgraph = require('levelgraph'),
-    jsonld     = require('levelgraph-jsonld'),
-    opts       = {
-                   base: 'http://matteocollina.com/base',
-                   preserve: true
-                 },
-    db         = jsonld(levelgraph(yourDB), opts);
-```
+> From v1, overwriting and deleting is more conservative. If you rely on the previous behavior you can set the `overwrite` option to `true` (when creating the db or as options to `put` and `del`) to:
+>  - overwrite all existing triples when using `put`
+>  - delete all blank nodes recursively when using `del` (cf upcoming `cut` function)
+> This old api will be phased out.
 
 ### Put
 
@@ -153,14 +143,6 @@ db.jsonld.put(nested, function(err, obj) {
 });
 ```
 
-By default, `put` **deletes all triples associated to the `@id` of the document before updating it**. If you want to instead only update the triples that are part of the document you can use the `{ preserve : true }` option (you can also [set it globally when you create the DB](#usage)):
-
-```javascript
-db.jsonld.put(nested, { preserve : true }, function(err, obj) {
-  // do something...
-});
-```
-
 ### Get
 
 Retrieving a JSON-LD object from the store requires its `'@id'`:
@@ -212,19 +194,33 @@ db.jsonld.put(nested, function(err, obj) {
 
 ### Delete
 
-In order to delete an object, you can just pass it's `'@id'` to the
-`'@del'` method:
+In order to delete an object, you need to pass the document to the `'del'` method which will delete only the properties specified in the document:
 ```javascript
-db.jsonld.del(manu['@id'], function(err) {
+db.jsonld.del(manu, function(err) {
   // do something after it is deleted!
 });
 ```
 
-By default, `del` **deletes all triples associated to the `@id`**. If you want to instead only delete the triples that are part of the document, you can use the `{ preserve : true }` option (you can also [set it globally when you create the DB](#usage)):
+Note that blank nodes are ignored, so to delete blank nodes you need to pass the `cut: true` option (you can also add the `recurse: true`option) or use the `'cut'` method below.
 
+> Note that since v1 `'del'` doesn't support passing an IRI anymore.
+
+### Cut
+
+In order to delete the blank nodes object, you can just pass it's `'@id'` to the
+`'cut'` method:
 ```javascript
-db.jsonld.del(nested, { preserve : true }, function(err) {
-  // do something...
+db.jsonld.cut(manu['@id'], function(err) {
+  // do something after it is cut!
+});
+```
+
+You can also pass an object, but in this case the properties are not used to determine which triples will be deleted and only the `@id`s are considered.
+
+Using the `recurse` option you can follow all links and blank nodes (which might result in deleting more data than you expect)
+```javascript
+db.jsonld.cut(manu['@id'], { recurse: true }, function(err) {
+  // do something after it is cut!
 });
 ```
 
