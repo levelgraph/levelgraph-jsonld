@@ -215,6 +215,17 @@ function levelgraphJSONLD(db, jsonldOpts) {
   graphdb.jsonld.del = function(obj, options, callback) {
     var blanks = {};
 
+    if (typeof obj === 'string') {
+      try {
+        obj = JSON.parse(obj);
+      } catch (e) {
+        // Handle case where we're trying to delete by passing an IRI
+        if (!N3Util.isIRI(obj)) {
+          throw e
+        }
+      }
+    }
+
     if (typeof options === 'function') {
       callback = options;
       options = {};
