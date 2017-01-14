@@ -1,4 +1,161 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.levelgraphJSONLD = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+// **N3Util** provides N3 utility functions.
+
+var Xsd = 'http://www.w3.org/2001/XMLSchema#';
+var XsdString  = Xsd + 'string';
+var XsdInteger = Xsd + 'integer';
+var XsdDecimal = Xsd + 'decimal';
+var XsdBoolean = Xsd + 'boolean';
+var RdfLangString = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString';
+
+var N3Util = {
+  // Tests whether the given entity (triple object) represents an IRI in the N3 library
+  isIRI: function (entity) {
+    if (!entity)
+      return entity;
+    var firstChar = entity[0];
+    return typeof entity === 'string' && firstChar !== '"' && firstChar !== '_';
+  },
+
+  // Tests whether the given entity (triple object) represents a literal in the N3 library
+  isLiteral: function (entity) {
+    return entity && entity[0] === '"';
+  },
+
+  // Tests whether the given entity (triple object) represents a blank node in the N3 library
+  isBlank: function (entity) {
+    return entity && entity.substr(0, 2) === '_:';
+  },
+
+  // Tests whether the given entity represents the default graph
+  isDefaultGraph: function (entity) {
+    return !entity;
+  },
+
+  // Tests whether the given triple is in the default graph
+  inDefaultGraph: function (triple) {
+    return !triple.graph;
+  },
+
+  // Gets the string value of a literal in the N3 library
+  getLiteralValue: function (literal) {
+    var match = /^"([^]*)"/.exec(literal);
+    if (!match)
+      throw new Error(literal + ' is not a literal');
+    return match[1];
+  },
+
+  // Gets the type of a literal in the N3 library
+  getLiteralType: function (literal) {
+    var match = /^"[^]*"(?:\^\^([^"]+)|(@)[^@"]+)?$/.exec(literal);
+    if (!match)
+      throw new Error(literal + ' is not a literal');
+    return match[1] || (match[2] ? RdfLangString : XsdString);
+  },
+
+  // Gets the language of a literal in the N3 library
+  getLiteralLanguage: function (literal) {
+    var match = /^"[^]*"(?:@([^@"]+)|\^\^[^"]+)?$/.exec(literal);
+    if (!match)
+      throw new Error(literal + ' is not a literal');
+    return match[1] ? match[1].toLowerCase() : '';
+  },
+
+  // Tests whether the given entity (triple object) represents a prefixed name
+  isPrefixedName: function (entity) {
+    return entity && /^[^:\/"']*:[^:\/"']+$/.test(entity);
+  },
+
+  // Expands the prefixed name to a full IRI (also when it occurs as a literal's type)
+  expandPrefixedName: function (prefixedName, prefixes) {
+    var match = /(?:^|"\^\^)([^:\/#"'\^_]*):[^\/]*$/.exec(prefixedName), prefix, base, index;
+    if (match)
+      prefix = match[1], base = prefixes[prefix], index = match.index;
+    if (base === undefined)
+      return prefixedName;
+
+    // The match index is non-zero when expanding a literal's type
+    return index === 0 ? base + prefixedName.substr(prefix.length + 1)
+                       : prefixedName.substr(0, index + 3) +
+                         base + prefixedName.substr(index + prefix.length + 4);
+  },
+
+  // Creates an IRI in N3.js representation
+  createIRI: function (iri) {
+    return iri && iri[0] === '"' ? N3Util.getLiteralValue(iri) : iri;
+  },
+
+  // Creates a literal in N3.js representation
+  createLiteral: function (value, modifier) {
+    if (!modifier) {
+      switch (typeof value) {
+      case 'boolean':
+        modifier = XsdBoolean;
+        break;
+      case 'number':
+        if (isFinite(value)) {
+          modifier = value % 1 === 0 ? XsdInteger : XsdDecimal;
+          break;
+        }
+      default:
+        return '"' + value + '"';
+      }
+    }
+    return '"' + value +
+           (/^[a-z]+(-[a-z0-9]+)*$/i.test(modifier) ? '"@'  + modifier.toLowerCase()
+                                                    : '"^^' + modifier);
+  },
+
+  // Creates a function that prepends the given IRI to a local name
+  prefix: function (iri) {
+    return N3Util.prefixes({ '': iri })('');
+  },
+
+  // Creates a function that allows registering and expanding prefixes
+  prefixes: function (defaultPrefixes) {
+    // Add all of the default prefixes
+    var prefixes = Object.create(null);
+    for (var prefix in defaultPrefixes)
+      processPrefix(prefix, defaultPrefixes[prefix]);
+
+    // Registers a new prefix (if an IRI was specified)
+    // or retrieves a function that expands an existing prefix (if no IRI was specified)
+    function processPrefix(prefix, iri) {
+      // Create a new prefix if an IRI is specified or the prefix doesn't exist
+      if (iri || !(prefix in prefixes)) {
+        var cache = Object.create(null);
+        iri = iri || '';
+        // Create a function that expands the prefix
+        prefixes[prefix] = function (localName) {
+          return cache[localName] || (cache[localName] = iri + localName);
+        };
+      }
+      return prefixes[prefix];
+    }
+    return processPrefix;
+  },
+};
+
+// Add the N3Util functions to the given object or its prototype
+function addN3Util(parent, toPrototype) {
+  for (var name in N3Util)
+    if (!toPrototype)
+      parent[name] = N3Util[name];
+    else
+      parent.prototype[name] = applyToThis(N3Util[name]);
+
+  return parent;
+}
+
+// Returns a function that applies `f` to the `this` object
+function applyToThis(f) {
+  return function (a) { return f(this, a); };
+}
+
+// Expose N3Util, attaching all functions to it
+module.exports = addN3Util(addN3Util);
+
+},{}],2:[function(require,module,exports){
 var jsonld = require('jsonld'),
     uuid   = require('uuid'),
     RDFTYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
@@ -128,7 +285,6 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
   function doDel(obj, options, callback) {
     var blanks = {};
-
     jsonld.expand(obj, options, function(err, expanded) {
       if (err) {
         return callback && callback(err);
@@ -137,6 +293,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
       var stream  = graphdb.delStream();
       stream.on('close', callback);
       stream.on('error', callback);
+
       if (options.base) {
         if (expanded['@context']) {
           expanded['@context']['@base'] = options.base;
@@ -154,12 +311,11 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
           return ['subject', 'predicate', 'object'].reduce(function(acc, key) {
             var node = triple[key];
-            console.log(node)
-            // mark non stored blank nodes to skip deletion as per https://www.w3.org/TR/ldpatch/#Delete-statement
+            // mark blank nodes to skip deletion as per https://www.w3.org/TR/ldpatch/#Delete-statement
             // uses type field set to 'blank node' by jsonld.js toRDF()
             if (node.type === 'blank node') {
               if (!blanks[node.value]) {
-                blanks[node.value] = '_:b';
+                blanks[node.value] = '_:';
               }
               node.value = blanks[node.value];
             }
@@ -183,13 +339,45 @@ function levelgraphJSONLD(db, jsonldOpts) {
           }, {});
         }).forEach(function(triple) {
           // Skip marked blank nodes.
-          if (triple.subject.indexOf('_:b') !== 0 && triple.object.indexOf('_:b') !== 0) {
+          if (triple.subject.indexOf('_:') !== 0 && triple.object.indexOf('_:') !== 0) {
             stream.write(triple);
           }
         });
         stream.end();
       });
     })
+  }
+
+  function doCut(obj, options, callback) {
+    var iri = obj;
+    if (typeof obj !=='string') {
+      iri = obj['@id'];
+    }
+    if (iri === undefined) {
+      return callback && callback(null);
+    }
+
+    var stream = graphdb.delStream();
+    stream.on('close', callback);
+    stream.on('error', callback);
+
+    (function delAllTriples(iri, done) {
+      graphdb.get({ subject: iri }, function(err, triples) {
+        async.each(triples, function(triple, cb) {
+          stream.write(triple);
+          if (triple.object.indexOf('_:') === 0 || (options.recurse && N3Util.isIRI(triple.object))) {
+            delAllTriples(triple.object, cb);
+          } else {
+            cb();
+          }
+        }, done);
+      });
+    })(iri, function(err) {
+      if (err) {
+        return callback(err);
+      }
+      stream.end();
+    });
   }
 
   graphdb.jsonld.put = function(obj, options, callback) {
@@ -204,59 +392,59 @@ function levelgraphJSONLD(db, jsonldOpts) {
     }
 
     options.base = options.base || this.options.base;
-    options.preserve = options.preserve ||  this.options.preserve || false;
+    options.overwrite = options.overwrite !== undefined ? options.overwrite : ( this.options.overwrite !== undefined ? this.options.overwrite : false );
 
-    graphdb.jsonld.del(obj, options, function(err) {
-      if (err) {
-        return callback && callback(err);
-      }
+    if (!options.overwrite) {
       doPut(obj, options, callback);
-    });
+    } else {
+      graphdb.jsonld.del(obj, options, function(err) {
+        if (err) {
+          return callback && callback(err);
+        }
+      });
+      doPut(obj, options, callback);
+    }
   };
 
   graphdb.jsonld.del = function(obj, options, callback) {
-    var blanks = {};
 
     if (typeof options === 'function') {
       callback = options;
       options = {};
     }
 
-    options.preserve = options.preserve ||  this.options.preserve || false;
+    options.cut = options.cut !== undefined ? options.cut : ( this.options.cut !== undefined ? this.options.cut : false );
+    options.recurse = options.recurse !== undefined ? options.recurse : ( this.options.recurse !== undefined ? this.options.recurse : false );
 
-    if (options.preserve === false) {
-      var iri = obj;
-      if (typeof obj !=='string') {
-        iri = obj['@id'];
-      }
-
-      var stream = graphdb.delStream();
-      stream.on('close', callback);
-      stream.on('error', callback);
-
-      (function delAllTriples(iri, done) {
-        graphdb.get({ subject: iri }, function(err, triples) {
-          console.log("delAllTriples triples")
-          console.log(triples)
-          async.each(triples, function(triple, cb) {
-            stream.write(triple);
-            if (triple.object.indexOf('_:') === 0) {
-              delAllTriples(triple.object, cb);
-            } else {
-              cb();
-            }
-          }, done);
-        });
-      })(iri, function(err) {
-        if (err) {
-          return callback(err);
+    if (typeof obj === 'string') {
+      try {
+        obj = JSON.parse(obj);
+      } catch (e) {
+        if (N3Util.isIRI(obj) && !options.cut) {
+          callback(new Error("Passing an IRI to del is not supported anymore. Please pass a JSON-LD document."))
         }
-        stream.end();
-      });
-    } else {
+      }
+    }
+
+    if (!options.cut) {
       doDel(obj, options, callback)
+    } else {
+      doCut(obj, options, callback)
     }
   };
+
+
+  graphdb.jsonld.cut = function(obj, options, callback) {
+
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+
+    options.recurse = options.recurse ||  this.options.recurse || false;
+
+    doCut(obj, options, callback);
+  }
 
   // http://json-ld.org/spec/latest/json-ld-api/#data-round-tripping
   function getCoercedObject(object) {
@@ -394,7 +582,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
 module.exports = levelgraphJSONLD;
 
-},{"async":2,"jsonld":5,"n3/lib/N3Util":7,"uuid":8}],2:[function(require,module,exports){
+},{"async":3,"jsonld":6,"n3/lib/N3Util":1,"uuid":8}],3:[function(require,module,exports){
 (function (process,global){
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -5687,7 +5875,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 })));
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":3}],3:[function(require,module,exports){
+},{"_process":4}],4:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -5869,9 +6057,9 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],4:[function(require,module,exports){
-// Ignore module for browserify (see package.json)
 },{}],5:[function(require,module,exports){
+// Ignore module for browserify (see package.json)
+},{}],6:[function(require,module,exports){
 (function (process,global,__dirname){
 /**
  * A JavaScript implementation of the JSON-LD API.
@@ -14055,7 +14243,7 @@ return factory;
 })();
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},"/node_modules/jsonld/js")
-},{"_process":3,"crypto":4,"es6-promise":6,"http":4,"jsonld-request":4,"pkginfo":4,"request":4,"util":4,"xmldom":4}],6:[function(require,module,exports){
+},{"_process":4,"crypto":5,"es6-promise":7,"http":5,"jsonld-request":5,"pkginfo":5,"request":5,"util":5,"xmldom":5}],7:[function(require,module,exports){
 (function (process,global){
 /*!
  * @overview es6-promise - a tiny implementation of Promises/A+.
@@ -15031,164 +15219,7 @@ return factory;
 
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":3}],7:[function(require,module,exports){
-// **N3Util** provides N3 utility functions.
-
-var Xsd = 'http://www.w3.org/2001/XMLSchema#';
-var XsdString  = Xsd + 'string';
-var XsdInteger = Xsd + 'integer';
-var XsdDecimal = Xsd + 'decimal';
-var XsdBoolean = Xsd + 'boolean';
-var RdfLangString = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString';
-
-var N3Util = {
-  // Tests whether the given entity (triple object) represents an IRI in the N3 library
-  isIRI: function (entity) {
-    if (!entity)
-      return entity;
-    var firstChar = entity[0];
-    return firstChar !== '"' && firstChar !== '_';
-  },
-
-  // Tests whether the given entity (triple object) represents a literal in the N3 library
-  isLiteral: function (entity) {
-    return entity && entity[0] === '"';
-  },
-
-  // Tests whether the given entity (triple object) represents a blank node in the N3 library
-  isBlank: function (entity) {
-    return entity && entity.substr(0, 2) === '_:';
-  },
-
-  // Tests whether the given entity represents the default graph
-  isDefaultGraph: function (entity) {
-    return !entity;
-  },
-
-  // Tests whether the given triple is in the default graph
-  inDefaultGraph: function (triple) {
-    return !triple.graph;
-  },
-
-  // Gets the string value of a literal in the N3 library
-  getLiteralValue: function (literal) {
-    var match = /^"([^]*)"/.exec(literal);
-    if (!match)
-      throw new Error(literal + ' is not a literal');
-    return match[1];
-  },
-
-  // Gets the type of a literal in the N3 library
-  getLiteralType: function (literal) {
-    var match = /^"[^]*"(?:\^\^([^"]+)|(@)[^@"]+)?$/.exec(literal);
-    if (!match)
-      throw new Error(literal + ' is not a literal');
-    return match[1] || (match[2] ? RdfLangString : XsdString);
-  },
-
-  // Gets the language of a literal in the N3 library
-  getLiteralLanguage: function (literal) {
-    var match = /^"[^]*"(?:@([^@"]+)|\^\^[^"]+)?$/.exec(literal);
-    if (!match)
-      throw new Error(literal + ' is not a literal');
-    return match[1] ? match[1].toLowerCase() : '';
-  },
-
-  // Tests whether the given entity (triple object) represents a prefixed name
-  isPrefixedName: function (entity) {
-    return entity && /^[^:\/"']*:[^:\/"']+$/.test(entity);
-  },
-
-  // Expands the prefixed name to a full IRI (also when it occurs as a literal's type)
-  expandPrefixedName: function (prefixedName, prefixes) {
-    var match = /(?:^|"\^\^)([^:\/#"'\^_]*):[^\/]*$/.exec(prefixedName), prefix, base, index;
-    if (match)
-      prefix = match[1], base = prefixes[prefix], index = match.index;
-    if (base === undefined)
-      return prefixedName;
-
-    // The match index is non-zero when expanding a literal's type
-    return index === 0 ? base + prefixedName.substr(prefix.length + 1)
-                       : prefixedName.substr(0, index + 3) +
-                         base + prefixedName.substr(index + prefix.length + 4);
-  },
-
-  // Creates an IRI in N3.js representation
-  createIRI: function (iri) {
-    return iri && iri[0] === '"' ? N3Util.getLiteralValue(iri) : iri;
-  },
-
-  // Creates a literal in N3.js representation
-  createLiteral: function (value, modifier) {
-    if (!modifier) {
-      switch (typeof value) {
-      case 'boolean':
-        modifier = XsdBoolean;
-        break;
-      case 'number':
-        if (isFinite(value)) {
-          modifier = value % 1 === 0 ? XsdInteger : XsdDecimal;
-          break;
-        }
-      default:
-        return '"' + value + '"';
-      }
-    }
-    return '"' + value +
-           (/^[a-z]+(-[a-z0-9]+)*$/i.test(modifier) ? '"@'  + modifier.toLowerCase()
-                                                    : '"^^' + modifier);
-  },
-
-  // Creates a function that prepends the given IRI to a local name
-  prefix: function (iri) {
-    return N3Util.prefixes({ '': iri })('');
-  },
-
-  // Creates a function that allows registering and expanding prefixes
-  prefixes: function (defaultPrefixes) {
-    // Add all of the default prefixes
-    var prefixes = Object.create(null);
-    for (var prefix in defaultPrefixes)
-      processPrefix(prefix, defaultPrefixes[prefix]);
-
-    // Registers a new prefix (if an IRI was specified)
-    // or retrieves a function that expands an existing prefix (if no IRI was specified)
-    function processPrefix(prefix, iri) {
-      // Create a new prefix if an IRI is specified or the prefix doesn't exist
-      if (iri || !(prefix in prefixes)) {
-        var cache = Object.create(null);
-        iri = iri || '';
-        // Create a function that expands the prefix
-        prefixes[prefix] = function (localName) {
-          return cache[localName] || (cache[localName] = iri + localName);
-        };
-      }
-      return prefixes[prefix];
-    }
-    return processPrefix;
-  },
-};
-
-// Add the N3Util functions to the given object or its prototype
-function addN3Util(parent, toPrototype) {
-  for (var name in N3Util)
-    if (!toPrototype)
-      parent[name] = N3Util[name];
-    else
-      parent.prototype[name] = applyToThis(N3Util[name]);
-
-  return parent;
-}
-
-// Returns a function that applies `f` to the `this` object
-function applyToThis(f) {
-  return function (a) { return f(this, a); };
-}
-
-// Expose N3Util, attaching all functions to it
-module.exports = addN3Util(addN3Util);
-
-},{}],8:[function(require,module,exports){
+},{"_process":4}],8:[function(require,module,exports){
 var v1 = require('./v1');
 var v4 = require('./v4');
 
@@ -15396,5 +15427,5 @@ function v4(options, buf, offset) {
 
 module.exports = v4;
 
-},{"./lib/bytesToUuid":9,"./lib/rng":10}]},{},[1])(1)
+},{"./lib/bytesToUuid":9,"./lib/rng":10}]},{},[2])(2)
 });
