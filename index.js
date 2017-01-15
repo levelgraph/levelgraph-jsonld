@@ -420,18 +420,35 @@ function levelgraphJSONLD(db, jsonldOpts) {
     });
   }
 
-  graphdb.jsonld.get = function(iri, context, options, callback) {
+  graphdb.jsonld.get = function(frame, context, options, callback) {
+    var iri;
+
+    if (typeof frame === 'string') {
+      iri = frame
+      frame = {};
+      frame["@id"] = iri;
+    } else {
+      iri = frame["@id"]
+    }
 
     if (typeof options === 'function') {
       callback = options;
       options = {};
+    } else if (typeof context === 'function') {
+      callback = context;
+      context = frame["@context"] || {};
     }
 
     fetchExpandedTriples(iri, function(err, expanded) {
       if (err || expanded === null) {
         return callback(err, expanded);
       }
-      jsonld.compact(expanded[iri], context, options, callback);
+      jsonld.frame(expanded[iri], frame, function(err, framed) {
+        if (err || expanded === null) {
+          return callback(err, framed);
+        }
+        jsonld.compact(framed, context, options, callback);
+      });
     });
   };
 

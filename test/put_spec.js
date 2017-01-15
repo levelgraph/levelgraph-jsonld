@@ -293,6 +293,28 @@ describe('jsonld.put', function() {
     })
   })
 
+  it('should insert a document with a top named graph and sub named graphs', function(done) {
+    var top_sub_graphs = helper.getFixture('top_sub_graphs.json');
+
+    db.jsonld.put(top_sub_graphs, function() {
+      db.get({}, function(err, triples) {
+        expect(triples).to.have.length(4);
+        done();
+      });
+    })
+  })
+
+  it('should insert a document with a sub graph referring the top graphs', function(done) {
+    var graph_as_node = helper.getFixture('graph_as_node.json');
+
+    db.jsonld.put(graph_as_node, function() {
+      db.get({}, function(err, triples) {
+        expect(triples).to.have.length(3);
+        done();
+      });
+    })
+  })
+
   it('should insert a large graph', function(done) {
     var ontology = helper.getFixture('ontology.json');
 

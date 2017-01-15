@@ -911,6 +911,48 @@ var getFixture = function(name) {
           }
         }
       ]
+    },
+    "top_sub_graphs.json": {
+      "@context": { "@vocab": "http://example.org/" },
+      "@id": "http://example.org/graphs/top",
+      "generatedAt": "2012-04-09",
+      "@graph": [
+        {
+          "@id": "http://example.org/graphs/1",
+          "@graph": {
+            "@id": "http://example.org/people/gavin",
+            "http://example.com/vocab#name": "Gavin"
+          }
+        },
+        {
+          "@id": "http://example.org/graphs/2",
+          "@graph": {
+            "@id": "http://example.org/people/manu",
+            "http://example.com/vocab#name": "Manu"
+          }
+        },
+        {
+          "@id": "http://example.org/graphs/3",
+          "@graph": {
+            "@id": "http://example.org/people/Lehn",
+            "http://example.com/vocab#name": "Lehn"
+          }
+        }
+      ]
+    },
+    "graph_as_node.json": {
+      "@context": { "@vocab": "http://example.org/" },
+      "@id": "http://example.org/graphs/top",
+      "generatedAt": "2012-04-09",
+      "@graph": [
+        {
+          "@id": "http://example.org/graphs/1",
+          "has_graph": {
+            "@id": "http://example.org/graphs/top",
+            "http://example.com/vocab#name": "Gavin"
+          }
+        }
+      ]
     }
   };
   return fixtures[name];
