@@ -11,7 +11,7 @@ LevelGraph-JSONLD
 __LevelGraph-JSONLD__ is a plugin for
 [LevelGraph](http://github.com/mcollina/levelgraph) that adds the
 ability to store, retrieve and delete JSON-LD objects.
-In fact, it is a full-bown Object-Document-Mapper (ODM) for
+In fact, it is a full-blown Object-Document-Mapper (ODM) for
 __LevelGraph__.
 
 ## Install
