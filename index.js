@@ -37,6 +37,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
       }
 
       jsonld.toRDF(expanded, options, function(err, triples) {
+
         if (err || triples.length === 0) {
           return callback(err, null);
         }
@@ -86,42 +87,57 @@ function levelgraphJSONLD(db, jsonldOpts) {
           }
         });
 
-        triples['@default'].map(function(triple) {
+        Object.keys(triples).forEach(function(graph_key) {
+          var graph_name;
 
-          return ['subject', 'predicate', 'object'].reduce(function(acc, key) {
-            var node = triple[key];
-            // generate UUID to identify blank nodes
-            // uses type field set to 'blank node' by jsonld.js toRDF()
-            if (node.type === 'blank node') {
-              if (!blanks[node.value]) {
-                blanks[node.value] = '_:' + uuid.v1();
-              }
-              node.value = blanks[node.value];
-            }
-            // preserve object data types using double quotation for literals
-            // and don't keep data type for strings without defined language
-            if(key === 'object' && triple.object.datatype){
-              if(triple.object.datatype.match(XSDTYPE)){
-                if(triple.object.datatype === 'http://www.w3.org/2001/XMLSchema#string'){
-                  node.value = '"' + triple.object.value + '"';
-                } else {
-                  node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
-                }
-              } else if(triple.object.datatype.match(RDFLANGSTRING)){
-                node.value = '"' + triple.object.value + '"@' + triple.object.language;
+          var store_keys;
+          if (graph_key === '@default') {
+            // Do empty graph is @default for now.
+            store_keys = ['subject', 'predicate', 'object'];
+          } else {
+            store_keys = ['subject', 'predicate', 'object', 'graph'];
+          }
+
+          triples[graph_key].map(function(triple) {
+
+            return store_keys.reduce(function(acc, key) {
+              if(key === 'graph') {
+                acc[key] = graph_key;
               } else {
-                node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
+                var node = triple[key];
+                // generate UUID to identify blank nodes
+                // uses type field set to 'blank node' by jsonld.js toRDF()
+                if (node.type === 'blank node') {
+                  if (!blanks[node.value]) {
+                    blanks[node.value] = '_:' + uuid.v1();
+                  }
+                  node.value = blanks[node.value];
+                }
+                // preserve object data types using double quotation for literals
+                // and don't keep data type for strings without defined language
+                if(key === 'object' && triple.object.datatype){
+                  if(triple.object.datatype.match(XSDTYPE)){
+                    if(triple.object.datatype === 'http://www.w3.org/2001/XMLSchema#string'){
+                      node.value = '"' + triple.object.value + '"';
+                    } else {
+                      node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
+                    }
+                  } else if(triple.object.datatype.match(RDFLANGSTRING)){
+                    node.value = '"' + triple.object.value + '"@' + triple.object.language;
+                  } else {
+                    node.value = '"' + triple.object.value + '"^^' + triple.object.datatype;
+                  }
+                }
+                acc[key] = node.value;
               }
-            }
-            acc[key] = node.value;
-            return acc;
-          }, {});
-        }).forEach(function(triple) {
-          stream.write(triple);
+              return acc;
+            }, {});
+          }).forEach(function(triple) {
+            stream.write(triple);
+          });
         });
         stream.end();
       });
-
     });
   }
 
