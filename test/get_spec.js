@@ -35,19 +35,35 @@ describe('jsonld.get', function() {
   });
 
   describe('with an object with blank nodes', function() {
-    var tesla;
+    var tesla, annotation;
 
     beforeEach(function(done) {
       tesla = helper.getFixture('tesla.json');
-      db.jsonld.put(tesla, done);
+      annotation = helper.getFixture('annotation.json');
+      done();
     });
 
     it('should load it properly', function(done) {
-      db.jsonld.get(tesla['@id'], { '@context': tesla['@context'] }, function(err, obj) {
-        tesla['gr:hasPriceSpecification']['@id'] = obj['gr:hasPriceSpecification']['@id'];
-        tesla['gr:includes']['@id'] = obj['gr:includes']['@id'];
-        expect(obj).to.eql(tesla);
-        done();
+      db.jsonld.put(tesla, function() {
+        db.jsonld.get(tesla['@id'], { '@context': tesla['@context'] }, function(err, obj) {
+          tesla['gr:hasPriceSpecification']['@id'] = obj['gr:hasPriceSpecification']['@id'];
+          tesla['gr:includes']['@id'] = obj['gr:includes']['@id'];
+          expect(obj).to.eql(tesla);
+          done();
+        });
+      });
+    });
+
+    it('should load a complext context', function(done) {
+      db.jsonld.put(annotation, function(err, obj) {
+        console.log(JSON.stringify(err,true,2))
+        console.log(JSON.stringify(obj,true,2))
+
+        db.jsonld.get(annotation['id'], { '@context': annotation['@context'] }, function(err, obj) {
+          console.log(JSON.stringify(obj,true,2))
+          expect(obj).to.eql(annotation);
+          done();
+        });
       });
     });
   });
