@@ -349,8 +349,10 @@ function levelgraphJSONLD(db, jsonldOpts) {
       async.reduce(triples, memo, function(acc, triple, cb) {
         var key;
 
-        if (!acc[triple.subject]) {
+        if (!acc[triple.subject] && !N3Util.isBlank(triple.subject)) {
           acc[triple.subject] = { '@id': triple.subject };
+        } else if (N3Util.isBlank(triple.subject) && !acc[triple.subject]) {
+          acc[triple.subject] = {};
         }
         if (triple.predicate === RDFTYPE) {
           if (acc[triple.subject]['@type']) {
@@ -358,7 +360,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
           } else {
             acc[triple.subject]['@type'] = [triple.object];
           }
-          cb(null, acc);
+          return cb(null, acc);
         } else if (!N3Util.isBlank(triple.object)) {
           var object = {};
           if (N3Util.isIRI(triple.object)) {
@@ -367,42 +369,34 @@ function levelgraphJSONLD(db, jsonldOpts) {
             object = getCoercedObject(triple.object);
           }
           if(object['@id']) {
+            // expanding object iri
             fetchExpandedTriples(triple.object, function(err, expanded) {
-              if (expanded !== null && !acc[triple.subject][triple.predicate]) {
-                acc[triple.subject][triple.predicate] = expanded[triple.object];
-              } else if (expanded !== null) {
-                if (!acc[triple.subject][triple.predicate].push) {
-                  acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
-                }
+              if (!acc[triple.subject][triple.predicate]) acc[triple.subject][triple.predicate] = [];
+              if (expanded !== null) {
                 acc[triple.subject][triple.predicate].push(expanded[triple.object]);
               } else {
-                if (Array.isArray(acc[triple.subject][triple.predicate])){
-                  acc[triple.subject][triple.predicate].push(object);
-                } else {
-                  acc[triple.subject][triple.predicate] = [object];
-                }
+                acc[triple.subject][triple.predicate].push(object);
               }
-              cb(err, acc);
+              return cb(err, acc);
             });
           }
           else if (Array.isArray(acc[triple.subject][triple.predicate])){
             acc[triple.subject][triple.predicate].push(object);
-            cb(err, acc);
+            return cb(err, acc);
           } else {
             acc[triple.subject][triple.predicate] = [object];
-            cb(err, acc);
+            return cb(err, acc);
           }
         } else {
+          // deal with blanks
           fetchExpandedTriples(triple.object, function(err, expanded) {
-            if (expanded !== null && !acc[triple.subject][triple.predicate]) {
-              acc[triple.subject][triple.predicate] = expanded[triple.object];
-            } else if (expanded !== null) {
-              if (!Array.isArray(acc[triple.subject][triple.predicate])) {
-                acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
-              }
+            if (!acc[triple.subject][triple.predicate]) acc[triple.subject][triple.predicate] = [];
+            if (expanded !== null) {
               acc[triple.subject][triple.predicate].push(expanded[triple.object]);
+            } else {
+              acc[triple.subject][triple.predicate].push(object);
             }
-            cb(err, acc);
+            return cb(err, acc);
           });
         }
       }, callback);
