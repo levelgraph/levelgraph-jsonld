@@ -54,7 +54,7 @@ describe('jsonld.get', function() {
       });
     });
 
-    it('should load a complext context', function(done) {
+    it('should load a complex context', function(done) {
       db.jsonld.put(annotation, function(err, obj) {
         console.log(JSON.stringify(err,true,2))
         console.log(JSON.stringify(obj,true,2))
