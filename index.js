@@ -45,42 +45,47 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
         stream.on('error', callback);
         stream.on('close', function() {
+          if (options.blank_ids) {
+            // return rdf store scoped blank nodes
 
-          var blank_keys = Object.keys(blanks);
-          var clone_obj = Object.assign({}, obj)
-          var frame;
-          frame = (function framify(o) {
-            Object.keys(o).map(function(key) {
-              if (Array.isArray(o[key]) && key != "@type") {
-                o[key] = o[key][0];
-              } else if (typeof o[key] === "object") {
-                o[key] = framify(o[key]);
-              }
-            })
-            return o;
-          })(clone_obj)
-
-          if (blank_keys.length != 0) {
-            jsonld.frame(obj, frame, function(err, framed) {
-              if (err) {
-                return callback(err, null);
-              }
-              var framed_string = JSON.stringify(framed);
-
-              blank_keys.forEach(function(blank) {
-                framed_string = framed_string.replace(blank,blanks[blank])
+            var blank_keys = Object.keys(blanks);
+            var clone_obj = Object.assign({}, obj)
+            var frame;
+            frame = (function framify(o) {
+              Object.keys(o).map(function(key) {
+                if (Array.isArray(o[key]) && key != "@type") {
+                  o[key] = o[key][0];
+                } else if (typeof o[key] === "object") {
+                  o[key] = framify(o[key]);
+                }
               })
-              var ided = JSON.parse(framed_string);
-              if (ided["@graph"].length == 1) {
-                var clean_reframe = Object.assign({}, { "@context": ided["@context"]}, ided["@graph"][0]);
-                return callback(null, clean_reframe);
-              } else if (ided["@graph"].length > 1) {
-                return callback(null, ided);
-              } else {
-                // Could not reframe the input, returning the original object
-                return callback(null, obj);
-              }
-            })
+              return o;
+            })(clone_obj)
+
+            if (blank_keys.length != 0) {
+              jsonld.frame(obj, frame, function(err, framed) {
+                if (err) {
+                  return callback(err, null);
+                }
+                var framed_string = JSON.stringify(framed);
+
+                blank_keys.forEach(function(blank) {
+                  framed_string = framed_string.replace(blank,blanks[blank])
+                })
+                var ided = JSON.parse(framed_string);
+                if (ided["@graph"].length == 1) {
+                  var clean_reframe = Object.assign({}, { "@context": ided["@context"]}, ided["@graph"][0]);
+                  return callback(null, clean_reframe);
+                } else if (ided["@graph"].length > 1) {
+                  return callback(null, ided);
+                } else {
+                  // Could not reframe the input, returning the original object
+                  return callback(null, obj);
+                }
+              })
+            } else {
+              return callback(null, obj);
+            }
           } else {
             return callback(null, obj);
           }
