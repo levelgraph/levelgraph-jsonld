@@ -1,4 +1,3 @@
---reporter dot
 --ui bdd
 --growl
 --colors

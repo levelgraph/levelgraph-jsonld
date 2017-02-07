@@ -84,7 +84,7 @@ describe('jsonld.put', function() {
   it('should generate an @id for all blank nodes in a complex object', function(done) {
     var tesla = helper.getFixture('tesla.json');
 
-    db.jsonld.put(tesla, function(err, obj) {
+    db.jsonld.put(tesla, { blank_ids: true }, function(err, obj) {
       expect(obj['gr:hasPriceSpecification']['@id']).to.match(/^_\:/);
       expect(obj['gr:includes']['@id']).to.match(/^_\:/);
       done();
@@ -96,7 +96,7 @@ describe('jsonld.put', function() {
     var baseString = 'http://levelgraph.org/tests/';
     var baseRegEx = /^_\:/;
 
-    db.jsonld.put(manu, { base: baseString }, function(err, obj) {
+    db.jsonld.put(manu, { base: baseString, blank_ids: true }, function(err, obj) {
       expect(obj['@id']).to.match(baseRegEx);
       done();
     });
@@ -409,12 +409,12 @@ describe('jsonld.put with base', function() {
     });
   });
 
-  it('should generate an @id for unknown objects', function(done) {
+  it('should generate an @id for unknown objects with the blank_ids option', function(done) {
     delete manu['@id'];
     var baseString = 'http://levelgraph.org/tests/';
     var baseRegEx = /^_\:/;
 
-    db.jsonld.put(manu, { base: baseString }, function() {
+    db.jsonld.put(manu, { base: baseString, blank_ids: true }, function() {
       db.search({
         subject: db.v('subject'),
         predicate: 'http://xmlns.com/foaf/0.1/name'
@@ -425,12 +425,12 @@ describe('jsonld.put with base', function() {
     });
   });
 
-  it('should pass the generated @id to callback', function(done) {
+  it('should pass the generated @id to callback with the blank_ids option', function(done) {
     delete manu['@id'];
     var baseString = 'http://levelgraph.org/tests/';
     var baseRegEx = /^_\:/;
 
-    db.jsonld.put(manu, { base: baseString }, function(err, obj) {
+    db.jsonld.put(manu, { base: baseString, blank_ids: true }, function(err, obj) {
       expect(obj['@id']).to.match(baseRegEx);
       done();
     });
@@ -685,7 +685,7 @@ describe('jsonld.put with base', function() {
       var baseString = 'http://levelgraph.org/tests/';
       var baseRegEx = /^_\:/;
 
-      db.jsonld.put(manu, { base: baseString }, function() {
+      db.jsonld.put(manu, { base: baseString, blank_ids: true  }, function() {
         db.search({
           subject: db.v('subject'),
           predicate: 'http://xmlns.com/foaf/0.1/name'
@@ -699,7 +699,7 @@ describe('jsonld.put with base', function() {
     it('should generate an @id for all blank nodes in a complex object', function(done) {
       var tesla = helper.getFixture('tesla.json');
 
-      db.jsonld.put(tesla, function(err, obj) {
+      db.jsonld.put(tesla, { blank_ids: true }, function(err, obj) {
         expect(obj['gr:hasPriceSpecification']['@id']).to.match(/^_\:/);
         expect(obj['gr:includes']['@id']).to.match(/^_\:/);
         done();
@@ -711,7 +711,7 @@ describe('jsonld.put with base', function() {
       var baseString = 'http://levelgraph.org/tests/';
       var baseRegEx = /^_\:/;
 
-      db.jsonld.put(manu, { base: baseString }, function(err, obj) {
+      db.jsonld.put(manu, { base: baseString, blank_ids: true  }, function(err, obj) {
         expect(obj['@id']).to.match(baseRegEx);
         done();
       });
@@ -827,11 +827,13 @@ describe('jsonld.put with base', function() {
 
     it('should manage mapped @id', function(done) {
       var mapped_id = helper.getFixture('mapped_id.json')
-      db.jsonld.put(mapped_id, {preserve: true}, function(err, obj) {
+      db.jsonld.put(mapped_id, {preserve: true}, function(err) {
         expect(err && err.name).to.be.null;
-        db.get({}, function(err, triples) {
-          expect(triples).to.have.length(4);
-          done();
+        db.jsonld.get(mapped_id["id"], { "@context": mapped_id["@context"]}, function(err, obj) {
+          db.get({}, function(err, triples) {
+            expect(triples).to.have.length(4);
+            done();
+          });
         });
       });
     });

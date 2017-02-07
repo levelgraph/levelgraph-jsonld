@@ -35,19 +35,30 @@ describe('jsonld.get', function() {
   });
 
   describe('with an object with blank nodes', function() {
-    var tesla;
+    var tesla, annotation;
 
     beforeEach(function(done) {
       tesla = helper.getFixture('tesla.json');
-      db.jsonld.put(tesla, done);
+      annotation = helper.getFixture('annotation.json');
+      done();
     });
 
     it('should load it properly', function(done) {
-      db.jsonld.get(tesla['@id'], { '@context': tesla['@context'] }, function(err, obj) {
-        tesla['gr:hasPriceSpecification']['@id'] = obj['gr:hasPriceSpecification']['@id'];
-        tesla['gr:includes']['@id'] = obj['gr:includes']['@id'];
-        expect(obj).to.eql(tesla);
-        done();
+      db.jsonld.put(tesla, function() {
+        db.jsonld.get(tesla['@id'], { '@context': tesla['@context'] }, function(err, obj) {
+          expect(obj).to.eql(tesla);
+          done();
+        });
+      });
+    });
+
+    it('should load a context with mapped ids', function(done) {
+      db.jsonld.put(annotation, function() {
+        db.jsonld.get(annotation['id'], { '@context': annotation['@context'] }, function(err, obj) {
+          expect(obj['body']).to.deep.have.members(annotation['body']);
+          expect(obj['target']).to.deep.have.members(annotation['target']);
+          done();
+        });
       });
     });
   });

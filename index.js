@@ -45,42 +45,47 @@ function levelgraphJSONLD(db, jsonldOpts) {
 
         stream.on('error', callback);
         stream.on('close', function() {
+          if (options.blank_ids) {
+            // return rdf store scoped blank nodes
 
-          var blank_keys = Object.keys(blanks);
-          var clone_obj = Object.assign({}, obj)
-          var frame;
-          frame = (function framify(o) {
-            Object.keys(o).map(function(key) {
-              if (Array.isArray(o[key]) && key != "@type") {
-                o[key] = o[key][0];
-              } else if (typeof o[key] === "object") {
-                o[key] = framify(o[key]);
-              }
-            })
-            return o;
-          })(clone_obj)
-
-          if (blank_keys.length != 0) {
-            jsonld.frame(obj, frame, function(err, framed) {
-              if (err) {
-                return callback(err, null);
-              }
-              var framed_string = JSON.stringify(framed);
-
-              blank_keys.forEach(function(blank) {
-                framed_string = framed_string.replace(blank,blanks[blank])
+            var blank_keys = Object.keys(blanks);
+            var clone_obj = Object.assign({}, obj)
+            var frame;
+            frame = (function framify(o) {
+              Object.keys(o).map(function(key) {
+                if (Array.isArray(o[key]) && key != "@type") {
+                  o[key] = o[key][0];
+                } else if (typeof o[key] === "object") {
+                  o[key] = framify(o[key]);
+                }
               })
-              var ided = JSON.parse(framed_string);
-              if (ided["@graph"].length == 1) {
-                var clean_reframe = Object.assign({}, { "@context": ided["@context"]}, ided["@graph"][0]);
-                return callback(null, clean_reframe);
-              } else if (ided["@graph"].length > 1) {
-                return callback(null, ided);
-              } else {
-                // Could not reframe the input, returning the original object
-                return callback(null, obj);
-              }
-            })
+              return o;
+            })(clone_obj)
+
+            if (blank_keys.length != 0) {
+              jsonld.frame(obj, frame, function(err, framed) {
+                if (err) {
+                  return callback(err, null);
+                }
+                var framed_string = JSON.stringify(framed);
+
+                blank_keys.forEach(function(blank) {
+                  framed_string = framed_string.replace(blank,blanks[blank])
+                })
+                var ided = JSON.parse(framed_string);
+                if (ided["@graph"].length == 1) {
+                  var clean_reframe = Object.assign({}, { "@context": ided["@context"]}, ided["@graph"][0]);
+                  return callback(null, clean_reframe);
+                } else if (ided["@graph"].length > 1) {
+                  return callback(null, ided);
+                } else {
+                  // Could not reframe the input, returning the original object
+                  return callback(null, obj);
+                }
+              })
+            } else {
+              return callback(null, obj);
+            }
           } else {
             return callback(null, obj);
           }
@@ -344,8 +349,10 @@ function levelgraphJSONLD(db, jsonldOpts) {
       async.reduce(triples, memo, function(acc, triple, cb) {
         var key;
 
-        if (!acc[triple.subject]) {
+        if (!acc[triple.subject] && !N3Util.isBlank(triple.subject)) {
           acc[triple.subject] = { '@id': triple.subject };
+        } else if (N3Util.isBlank(triple.subject) && !acc[triple.subject]) {
+          acc[triple.subject] = {};
         }
         if (triple.predicate === RDFTYPE) {
           if (acc[triple.subject]['@type']) {
@@ -353,7 +360,7 @@ function levelgraphJSONLD(db, jsonldOpts) {
           } else {
             acc[triple.subject]['@type'] = [triple.object];
           }
-          cb(null, acc);
+          return cb(null, acc);
         } else if (!N3Util.isBlank(triple.object)) {
           var object = {};
           if (N3Util.isIRI(triple.object)) {
@@ -362,42 +369,34 @@ function levelgraphJSONLD(db, jsonldOpts) {
             object = getCoercedObject(triple.object);
           }
           if(object['@id']) {
+            // expanding object iri
             fetchExpandedTriples(triple.object, function(err, expanded) {
-              if (expanded !== null && !acc[triple.subject][triple.predicate]) {
-                acc[triple.subject][triple.predicate] = expanded[triple.object];
-              } else if (expanded !== null) {
-                if (!acc[triple.subject][triple.predicate].push) {
-                  acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
-                }
+              if (!acc[triple.subject][triple.predicate]) acc[triple.subject][triple.predicate] = [];
+              if (expanded !== null) {
                 acc[triple.subject][triple.predicate].push(expanded[triple.object]);
               } else {
-                if (Array.isArray(acc[triple.subject][triple.predicate])){
-                  acc[triple.subject][triple.predicate].push(object);
-                } else {
-                  acc[triple.subject][triple.predicate] = [object];
-                }
+                acc[triple.subject][triple.predicate].push(object);
               }
-              cb(err, acc);
+              return cb(err, acc);
             });
           }
           else if (Array.isArray(acc[triple.subject][triple.predicate])){
             acc[triple.subject][triple.predicate].push(object);
-            cb(err, acc);
+            return cb(err, acc);
           } else {
             acc[triple.subject][triple.predicate] = [object];
-            cb(err, acc);
+            return cb(err, acc);
           }
         } else {
+          // deal with blanks
           fetchExpandedTriples(triple.object, function(err, expanded) {
-            if (expanded !== null && !acc[triple.subject][triple.predicate]) {
-              acc[triple.subject][triple.predicate] = expanded[triple.object];
-            } else if (expanded !== null) {
-              if (!Array.isArray(acc[triple.subject][triple.predicate])) {
-                acc[triple.subject][triple.predicate] = [acc[triple.subject][triple.predicate]];
-              }
+            if (!acc[triple.subject][triple.predicate]) acc[triple.subject][triple.predicate] = [];
+            if (expanded !== null) {
               acc[triple.subject][triple.predicate].push(expanded[triple.object]);
+            } else {
+              acc[triple.subject][triple.predicate].push(object);
             }
-            cb(err, acc);
+            return cb(err, acc);
           });
         }
       }, callback);
