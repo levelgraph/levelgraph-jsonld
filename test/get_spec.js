@@ -61,6 +61,17 @@ describe('jsonld.get', function() {
         });
       });
     });
+
+    it('should create ids for @list array contents', function(done) {
+      var choices = helper.getFixture('annotation-with-choice.json');
+      db.jsonld.put(choices, function() {
+        db.jsonld.get(choices['id'], { '@context': choices['@context'] }, function(err, obj) {
+          expect(obj['body']).to.have.property('items');
+          expect(obj['body']['items']).to.deep.have.members(choices['body']['items']);
+          done();
+        });
+      });
+    });
   });
 
   it('should support nested objects', function(done) {
