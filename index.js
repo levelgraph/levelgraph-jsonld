@@ -22,7 +22,12 @@ function levelgraphJSONLD(db, jsonldOpts) {
   };
 
   function doPut(obj, options, callback) {
+    // holds accumulated blank node identifiers
+    // example {"_:b0": "_:...uuid..."}
     var blanks = {};
+    // the inverse of the above object for speady look-up
+    // example {"_:...uuid...": "_:b0"}
+    var blanks_inverted = {};
 
     jsonld.expand(obj, function(err, expanded) {
       if (err) {
@@ -98,10 +103,17 @@ function levelgraphJSONLD(db, jsonldOpts) {
             // generate UUID to identify blank nodes
             // uses type field set to 'blank node' by jsonld.js toRDF()
             if (node.type === 'blank node') {
-              if (!blanks[node.value]) {
-                blanks[node.value] = '_:' + uuid.v1();
+              if (!(node.value in blanks)
+                  // avoid adding newly generated blank node identifiers
+                  && !(node.value in blanks_inverted)) {
+                var bnode = '_:' + uuid.v1();
+                blanks[node.value] = bnode;
+                blanks_inverted[bnode] = node.value;
               }
-              node.value = blanks[node.value];
+              if (!(node.value in blanks_inverted)) {
+                // we've not seen this one before, so add it to the node
+                node.value = blanks[node.value];
+              }
             }
             // preserve object data types using double quotation for literals
             // and don't keep data type for strings without defined language
