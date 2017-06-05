@@ -1,15 +1,15 @@
 LevelGraph-JSONLD
 ===========
 
-![Logo](https://github.com/mcollina/node-levelgraph/raw/master/logo.png)
+![Logo](https://github.com/levelgraph/node-levelgraph/raw/master/logo.png)
 
-[![Build Status](https://travis-ci.org/mcollina/levelgraph-jsonld.png)](https://travis-ci.org/mcollina/levelgraph-jsonld)
-[![Coverage Status](https://coveralls.io/repos/mcollina/levelgraph-jsonld/badge.png)](https://coveralls.io/r/mcollina/levelgraph-jsonld)
-[![Dependency Status](https://david-dm.org/mcollina/levelgraph-jsonld.png?theme=shields.io)](https://david-dm.org/mcollina/levelgraph-jsonld)
+[![Build Status](https://travis-ci.org/levelgraph/levelgraph-jsonld.png)](https://travis-ci.org/levelgraph/levelgraph-jsonld)
+[![Coverage Status](https://coveralls.io/repos/levelgraph/levelgraph-jsonld/badge.png)](https://coveralls.io/r/levelgraph/levelgraph-jsonld)
+[![Dependency Status](https://david-dm.org/levelgraph/levelgraph-jsonld.png?theme=shields.io)](https://david-dm.org/levelgraph/levelgraph-jsonld)
 [![Sauce Labs Tests](https://saucelabs.com/browser-matrix/levelgraph-jsonld.svg)](https://saucelabs.com/u/levelgraph-jsonld)
 
 __LevelGraph-JSONLD__ is a plugin for
-[LevelGraph](http://github.com/mcollina/levelgraph) that adds the
+[LevelGraph](http://github.com/levelgraph/levelgraph) that adds the
 ability to store, retrieve and delete JSON-LD objects.
 In fact, it is a full-blown Object-Document-Mapper (ODM) for
 __LevelGraph__.
@@ -39,7 +39,7 @@ If you need it, just open a pull request.
 
 If you use [browserify](http://browserify.org/) you can use this package
 in a browser just as in node.js. Please also take a look at [Browserify
-section in LevelGraph package](https://github.com/mcollina/levelgraph#browserify)
+section in LevelGraph package](https://github.com/levelgraph/levelgraph#browserify)
 
 You can also use standalone browserified version from `./build`
 directory or use [bower](http://bower.io)
@@ -289,7 +289,7 @@ db.jsonld.put(manu, function(){
 ```
 ## Changes
 
-[CHANGELOG.md](https://github.com/mcollina/levelgraph-jsonld/blob/master/CHANGELOG.md)
+[CHANGELOG.md](https://github.com/levelgraph/levelgraph-jsonld/blob/master/CHANGELOG.md)
 **including migration info for breaking changes**
 
 
@@ -311,7 +311,7 @@ db.jsonld.put(manu, function(){
 
 ## LICENSE - "MIT License"
 
-Copyright (c) 2013 Matteo Collina (http://matteocollina.com)
+Copyright (c) 2013-2017 Matteo Collina and LevelGraph-JSONLD contributors
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation

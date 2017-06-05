@@ -36,22 +36,22 @@
     "async": "^2.1.4",
     "jsonld": "0.4.9",
     "memdb": "^1.3.1",
-    "n3": "iilab/N3.js#fix/object-is-not-IRI",
+    "n3": "^0.10.0",
     "uuid": "^3.0.1"
   },
   "peerDependencies": {
     "levelgraph": "^2.0.0"
   },
   "devDependencies": {
-    "browserify": "^13.3.0",
+    "browserify": "^14.0.0",
     "chai": "~3.5.0",
-    "coveralls": "~2.11.8",
-    "istanbul": "~0.4.2",
+    "coveralls": "^2.11.8",
+    "istanbul": "^0.4.2",
     "leveldown": "^1.5.3",
     "levelgraph": "^2.0.0",
     "lodash": "^4.17.4",
     "mocha": "^3.2.0",
-    "uglify-js": "^2.7.5",
+    "uglify-js": "^3.0.0",
     "zuul": "^3.11.1"
   }
 }
