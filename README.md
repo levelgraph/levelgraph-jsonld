@@ -1,7 +1,7 @@
 LevelGraph-JSONLD
 ===========
 
-![Logo](https://github.com/levelgraph/node-levelgraph/raw/master/logo.png)
+![Logo](https://github.com/levelgraph/levelgraph/raw/master/logo.png)
 
 [![Build Status](https://travis-ci.org/levelgraph/levelgraph-jsonld.png)](https://travis-ci.org/levelgraph/levelgraph-jsonld)
 [![Coverage Status](https://coveralls.io/repos/levelgraph/levelgraph-jsonld/badge.png)](https://coveralls.io/r/levelgraph/levelgraph-jsonld)
