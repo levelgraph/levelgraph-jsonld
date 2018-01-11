@@ -101,6 +101,47 @@ describe('jsonld.get', function() {
     });
   });
 
+  describe('with an object with lists', function() {
+    var listdoc, listcontext;
+
+    beforeEach(function(done) {
+      listdoc = helper.getFixture('list.json');
+      listcontext = helper.getFixture('listcontext.json');
+      done();
+    });
+
+    it('should load it properly', function(done) {
+      db.jsonld.put(listdoc, function() {
+        db.jsonld.get(listdoc['@id'], {}, function(err, obj) {
+          expect(obj).to.eql(listdoc);
+          done();
+        });
+      });
+    });
+
+    it('should load with a context with list containers', function(done) {
+      db.jsonld.put(listcontext, function() {
+        db.jsonld.get(listcontext['@id'], { '@context': listcontext['@context'] }, function(err, obj) {
+          expect(obj).to.eql(listcontext);
+          done();
+        });
+      });
+    });
+  });
+
+  it('should reconstitute a list into an array', function(done) {
+    var listdoc = helper.getFixture('list.json');
+
+    db.jsonld.put(listdoc, function(err, obj) {
+      db.jsonld.get(obj['@id'], {}, function (err, loaded) {
+        expect(loaded['https://example.org/list']['@list']).length.to.be(2)
+        expect(loaded['https://example.org/list']['@list'][0]['https://example.org/item']).to.equal("one")
+        expect(loaded['https://example.org/list']['@list'][1]['https://example.org/item']).to.equal("two")
+        done();
+      });
+    });
+  });
+
   describe('with an object with an array for its ["@type"]', function() {
     var ratatat;
 

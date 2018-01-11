@@ -286,6 +286,17 @@ var getFixture = function(name) {
         }
       ]
     },
+    "list.json": {
+      "@id": "https://example.org/doc",
+      "https://example.org/list": { "@list": [ { "https://example.org/item": "one" }, { "https://example.org/item": "two" } ] }
+    },
+    "listcontext.json": {
+      "@id": "https://example.org/doc",
+      "@context": {
+        "https://example.org/list": { "@container": "@list" }
+      },
+      "https://example.org/list": [ { "https://example.org/item": "one" }, { "https://example.org/item": "two" } ]
+    },
     "annotation.json": {
       "@context": {
         "oa":      "http://www.w3.org/ns/oa#",

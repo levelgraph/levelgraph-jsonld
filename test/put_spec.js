@@ -91,6 +91,21 @@ describe('jsonld.put', function() {
     });
   });
 
+  it('should generate an @id for all blank nodes in a @list object', function(done) {
+    var listdoc = helper.getFixture('list.json');
+
+    db.jsonld.put(listdoc, { blank_ids: true }, function(err, obj) {
+      expect(obj['https://example.org/list']['@list']).length.to.be(2)
+      obj['https://example.org/list']['@list'].forEach(function (e) {
+        expect(e['@id']).to.match(/^_:/)
+      })
+      db.jsonld.get(obj['@id'], {}, function (err, loaded) {
+        expect(loaded['https://example.org/list']['@list']).length.to.be(2)
+        done();
+      });
+    });
+  });
+
   it('should pass the generated @id to callback', function(done) {
     delete manu['@id'];
     var baseString = 'http://levelgraph.org/tests/';
