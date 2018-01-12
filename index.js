@@ -54,18 +54,28 @@ function levelgraphJSONLD(db, jsonldOpts) {
             // return rdf store scoped blank nodes
 
             var blank_keys = Object.keys(blanks);
-            var clone_obj = Object.assign({}, obj)
-            var frame;
-            frame = (function framify(o) {
-              Object.keys(o).map(function(key) {
-                if (Array.isArray(o[key]) && key != "@type") {
-                  o[key] = o[key][0];
-                } else if (typeof o[key] === "object") {
-                  o[key] = framify(o[key]);
-                }
-              })
-              return o;
-            })(clone_obj)
+
+            function framify(o) {
+              if (Array.isArray(o)) {
+                return o.map(framify)
+              } else if (typeof o == 'object') {
+                var clone_o = {}
+                Object.keys(o).forEach(function(key) {
+                  if (Array.isArray(o[key]) && key != "@type") {
+                    clone_o[key] = framify(o[key][0])
+                  } else if (!Array.isArray(o[key]) && typeof o[key] === "object") {
+                    clone_o[key] = framify(o[key])
+                  } else {
+                    clone_o[key] = framify(o[key])
+                  }
+                })
+                return clone_o
+              } else {
+                return o
+              }
+            }
+
+            var frame = framify(obj)
 
             if (blank_keys.length != 0) {
               jsonld.frame(obj, frame, function(err, framed) {
