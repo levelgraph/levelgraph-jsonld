@@ -1,6 +1,9 @@
 var jsonld = require('jsonld'),
     uuid   = require('uuid'),
     RDFTYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+    RDFFIRST = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#first',
+    RDFREST = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#rest',
+    RDFNIL = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#nil',
     RDFLANGSTRING = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString',
     XSDTYPE = 'http://www.w3.org/2001/XMLSchema#',
     async = require('async'),
@@ -403,10 +406,10 @@ function levelgraphJSONLD(db, jsonldOpts) {
             });
           }
           else if (Array.isArray(acc[triple.subject][triple.predicate])){
-            acc[triple.subject][triple.predicate].push(object);
+            acc[triple.subject][triple.predicate] = acc[triple.subject][triple.predicate].concat(object);
             return cb(err, acc);
           } else {
-            acc[triple.subject][triple.predicate] = [object];
+            acc[triple.subject][triple.predicate] = Array.isArray(object) ? object : [object];
             return cb(err, acc);
           }
         } else {
@@ -414,14 +417,37 @@ function levelgraphJSONLD(db, jsonldOpts) {
           fetchExpandedTriples(triple.object, function(err, expanded) {
             if (!acc[triple.subject][triple.predicate]) acc[triple.subject][triple.predicate] = [];
             if (expanded !== null) {
-              acc[triple.subject][triple.predicate].push(expanded[triple.object]);
+              acc[triple.subject][triple.predicate] = acc[triple.subject][triple.predicate].concat(expanded[triple.object]);
             } else {
-              acc[triple.subject][triple.predicate].push(object);
+              acc[triple.subject][triple.predicate] = acc[triple.subject][triple.predicate].concat(object);
             }
             return cb(err, acc);
           });
         }
-      }, callback);
+      }, function (err, nodes) {
+        if (err) return callback(err)
+
+        if (nodes[iri][RDFFIRST]) {
+
+          var list = { '@list': gatherList(nodes[iri]) }
+          nodes[iri] = list
+        }
+
+        callback(null, nodes)
+      })
+
+      function gatherList(node) {
+        var list = []
+        list = list.concat(node[RDFFIRST])
+        if (node[RDFREST]) {
+          if (node[RDFREST][0] && node[RDFREST][0]['@list']) {
+            list = list.concat(node[RDFREST][0]['@list'])
+          } else if (!(node[RDFREST][0] && node[RDFREST][0]['@id'] && node[RDFREST][0]['@id'] == RDFNIL)) {
+            list = list.concat(node[RDFREST])
+          }
+        }
+        return list
+      }
     });
   }
 
