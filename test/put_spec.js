@@ -95,12 +95,12 @@ describe('jsonld.put', function() {
     var listdoc = helper.getFixture('list.json');
 
     db.jsonld.put(listdoc, { blank_ids: true }, function(err, obj) {
-      expect(obj['https://example.org/list']['@list']).length.to.be(2)
+      expect(obj['https://example.org/list']['@list']).to.have.length(2)
       obj['https://example.org/list']['@list'].forEach(function (e) {
         expect(e['@id']).to.match(/^_:/)
       })
       db.jsonld.get(obj['@id'], {}, function (err, loaded) {
-        expect(loaded['https://example.org/list']['@list']).length.to.be(2)
+        expect(loaded['https://example.org/list']['@list']).to.have.length(2)
         done();
       });
     });

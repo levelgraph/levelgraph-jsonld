@@ -134,7 +134,7 @@ describe('jsonld.get', function() {
 
     db.jsonld.put(listdoc, function(err, obj) {
       db.jsonld.get(obj['@id'], {}, function (err, loaded) {
-        expect(loaded['https://example.org/list']['@list']).length.to.be(2)
+        expect(loaded['https://example.org/list']['@list']).to.have.length(2)
         expect(loaded['https://example.org/list']['@list'][0]['https://example.org/item']).to.equal("one")
         expect(loaded['https://example.org/list']['@list'][1]['https://example.org/item']).to.equal("two")
         done();
