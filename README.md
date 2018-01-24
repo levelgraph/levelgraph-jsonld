@@ -24,11 +24,11 @@ $ npm install level levelgraph levelgraph-jsonld --save
 ```
 Then in your code:
 ```javascript
-var levelup = require("levelup"),
-    yourDB = levelup("./yourdb"),
+var level      = require('level'),
+    yourDB     = level('./yourdb'),
     levelgraph = require('levelgraph'),
-    levelgraphJSONLD = require('levelgraph-jsonld'),
-    db = levelgraphJSONLD(levelgraph(yourDB));
+    jsonld     = require('levelgraph-jsonld'),
+    db         = jsonld(levelgraph(yourDB));
 ```
 
 At the moment it requires node v0.10.x, but the port to node v0.8.x
@@ -62,15 +62,15 @@ It will also install its dependency levelgraph! Now you can simply:
 We assume in following examples that you created database as explained
 above!
 ```js
-var levelup = require("levelup"),
-    yourDB = levelup("./yourdb"),
-    db = levelgraphJSONLD(levelgraph(yourDB));
+var level  = require('level'),
+    yourDB = level('./yourdb'),
+    db     = levelgraphJSONLD(levelgraph(yourDB));
 ```
 
 `'base'` can also be specified when you create the db:
 ```javascript
-var levelup    = require("levelup"),
-    yourDB     = levelup("./yourdb"),
+var level      = require('level'),
+    yourDB     = level('./yourdb'),
     levelgraph = require('levelgraph'),
     jsonld     = require('levelgraph-jsonld'),
     opts       = { base: 'http://matteocollina.com/base' },
