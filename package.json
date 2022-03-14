@@ -39,7 +39,7 @@
     "uuid": "^3.0.1"
   },
   "peerDependencies": {
-    "levelgraph": "^2.0.0"
+    "levelgraph": "^3.0.0"
   },
   "devDependencies": {
     "browserify": "^14.0.0",
