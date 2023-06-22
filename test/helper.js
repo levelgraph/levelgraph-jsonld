@@ -1,5 +1,5 @@
 var fs       = require('fs'),
-    level    = require('memdb'),
+    level    = require('level-mem'),
     graph    = require('levelgraph'),
     jsonld   = require('../'),
     _        = require('lodash');
