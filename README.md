@@ -69,8 +69,11 @@ var level  = require('level'),
 
 `'base'` can also be specified when you create the db:
 ```javascript
-var level      = require('level'),
-    yourDB     = level('./yourdb'),
+
+const { Level } = require('level')
+
+// Create a database
+const yourDB = new Level('./yourdb'),
     levelgraph = require('levelgraph'),
     jsonld     = require('levelgraph-jsonld'),
     opts       = { base: 'http://matteocollina.com/base' },
