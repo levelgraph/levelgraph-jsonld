@@ -1,7 +1,7 @@
 var expect = require('chai').expect;
 var helper = require('./helper_persist');
 
-describe('db.search', function() {
+describe('db.search persist', function() {
 
   var db, gang, manu;
 

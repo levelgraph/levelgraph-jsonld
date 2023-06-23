@@ -1,3 +1,13 @@
+
+
+### 2.0.1 
+- try to fix the issue https://github.com/levelgraph/levelgraph-jsonld/pull/77
+- upgrade outdated dependencies
+- remove deprecated istanbul & zul  dev-dep, and test using it
+- 
+
+
+
 <a name="0.4.0"></a>
 ## 0.4.0 (2014-11-24)
 
@@ -9,4 +19,3 @@
 
   If you need a script to migrate your data please [create new
 issue](https://github.com/mcollina/levelgraph-jsonld/issues)
-

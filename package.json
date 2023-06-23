@@ -1,14 +1,11 @@
 {
   "name": "levelgraph-jsonld",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "The Object Document Mapper for LevelGraph based on JSON-LD",
   "main": "index.js",
   "scripts": {
     "test": "./node_modules/.bin/mocha --recursive test",
-    "zuul": "zuul -- test",
-    "zuul-local": "zuul --local -- test/*.js",
-    "coverage": "rm -rf coverage; istanbul cover _mocha -- --recursive --reporter spec --bail",
-    "publish-coverage": "cat coverage/lcov.info | coveralls"
+     "publish-coverage": "cat coverage/lcov.info | coveralls"
   },
   "repository": {
     "type": "git",
@@ -33,25 +30,23 @@
   "author": "Matteo Collina <hello@matteocollina.com>",
   "license": "MIT",
   "dependencies": {
-    "async": "^2.1.4",
-    "jsonld": "0.4.9",
-    "n3": "^0.10.0",
-    "uuid": "^3.0.1"
+    "async": "^3.2.4",
+    "jsonld": "^8.2.0",
+    "n3": "^1.16.4",
+    "uuid": "^9.0.0"
   },
   "peerDependencies": {
     "levelgraph": "^3.0.0"
   },
   "devDependencies": {
-    "browserify": "^14.0.0",
-    "chai": "^4.1.2",
-    "coveralls": "^3.0.0",
-    "istanbul": "^0.4.2",
+    "browserify": "^17.0.0",
+    "chai": "^4.3.7",
+    "coveralls": "^3.1.1",
     "level": "^8.0.0",
     "level-mem": "^6.0.1",
     "levelgraph": "^3.0.0",
-    "lodash": "^4.17.4",
-    "mocha": "^4.1.0",
-    "uglify-js": "^3.0.0",
-    "zuul": "^3.11.1"
+    "lodash": "^4.17.21",
+    "mocha": "^10.2.0",
+    "uglify-js": "^3.17.4"
   }
 }
