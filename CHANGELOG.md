@@ -3,8 +3,9 @@
 ### 2.0.1 
 - try to fix the issue https://github.com/levelgraph/levelgraph-jsonld/pull/77
 - upgrade outdated dependencies
-- remove deprecated istanbul & zul  dev-dep, and test using it
-- 
+- remove deprecated istanbul & zul  dev-dep, and test using it,
+- add a basic levl test with tape
+- write test wite tape
 
 
 

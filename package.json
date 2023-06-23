@@ -4,8 +4,7 @@
   "description": "The Object Document Mapper for LevelGraph based on JSON-LD",
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --recursive test",
-     "publish-coverage": "cat coverage/lcov.info | coveralls"
+    "test": "rm -rf yourtestdb; ./node_modules/.bin/mocha --recursive test"
   },
   "repository": {
     "type": "git",
@@ -47,6 +46,7 @@
     "levelgraph": "^3.0.0",
     "lodash": "^4.17.21",
     "mocha": "^10.2.0",
+    "tape": "^5.6.3",
     "uglify-js": "^3.17.4"
   }
 }

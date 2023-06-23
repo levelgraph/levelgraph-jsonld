@@ -1,6 +1,6 @@
 var fs = require("fs");
 const { Level } = require("level"),
-  yourDB = new Level("./yourdb"),
+  yourDB = new Level("./yourtestdb"),
   graph = require("levelgraph"),
   jsonld = require("../"),
   _ = require("lodash");
